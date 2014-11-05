@@ -21,7 +21,7 @@
 define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormModel', 'file-manager', 'q', 'jquery' ],
     function( gui, connection, settings, Form, FormModel, fileManager, Q, $ ) {
         "use strict";
-        var form, $form, $formprogress, formSelector, defaultModelStr, store;
+        var form, $form, $formprogress, formSelector, defaultModelStr;
 
         function init( selector, modelStr, instanceStrToEdit, options ) {
             var loadErrors, purpose;
@@ -38,6 +38,8 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             // DEBUG
             //window.form = form;
             //window.gui = gui;
+            //window.store = store;
+
 
             //initialize form and check for load errors
             loadErrors = form.init();

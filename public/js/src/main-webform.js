@@ -1,10 +1,9 @@
 require( [ 'require-config' ], function( rc ) {
     "use strict";
     if ( console.time ) console.time( 'client loading time' );
-    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'jquery' ],
-        function( gui, controller, settings, connection, FormModel, $ ) {
+    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'form-cache', 'q', 'jquery' ],
+        function( gui, controller, settings, connection, FormModel, formCache, Q, $ ) {
             var $loader = $( '.form__loader' ),
-                $form = $( 'form.or' ),
                 $buttons = $( '.form-header__button--print, button#validate-form, button#submit-form' ),
                 survey = {
                     enketoId: settings.enketoId,
@@ -14,17 +13,29 @@ require( [ 'require-config' ], function( rc ) {
                     defaults: settings.defaults
                 };
 
-            connection.getFormParts( survey )
-                .then( function( result ) {
-                    if ( result.form && result.model ) {
-                        _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
-                    } else {
-                        throw new Error( 'Form not complete.' );
-                    }
-                } )
-                .catch( _showErrorOrAuthenticate );
+            // DEBUG
+            window.formCache = formCache;
+
+            if ( settings.offline ) {
+                console.debug( 'in offline mode' );
+                formCache.init( survey )
+                    .then( _init )
+                    .then( formCache.updateMedia )
+                    .then( function( s ) {
+                        console.debug( 'Form is now stored and available offline!' );
+                        // TODO show offline-capable icon in UI
+                    } )
+                    .catch( _showErrorOrAuthenticate );
+            } else {
+                console.debug( 'in online mode' );
+                connection.getFormParts( survey )
+                    .then( _init )
+                    .catch( _showErrorOrAuthenticate );
+            }
 
             function _showErrorOrAuthenticate( error ) {
+                error = ( typeof error === 'string' ) ? new Error( error ) : error;
+                console.log( 'error', error, error.stack );
                 $loader.addClass( 'fail' );
                 if ( error.status === 401 ) {
                     window.location.href = '/login?return_url=' + encodeURIComponent( window.location.href );
@@ -54,13 +65,33 @@ require( [ 'require-config' ], function( rc ) {
                 return existingInstance;
             }
 
-            function _init( formStr, modelStr, instanceStr ) {
-                $loader[ 0 ].outerHTML = formStr;
-                $( document ).ready( function() {
-                    controller.init( 'form.or:eq(0)', modelStr, instanceStr );
-                    $form.add( $buttons ).removeClass( 'hide' );
-                    if ( console.timeEnd ) console.timeEnd( 'client loading time' );
-                } );
+            function _init( formParts ) {
+                var error, $form,
+                    deferred = Q.defer();
+
+                if ( formParts && formParts.form && formParts.model ) {
+                    $loader[ 0 ].outerHTML = formParts.form;
+                    $form = $( 'form.or:eq(0)' );
+
+                    $( document ).ready( function() {
+                        // TODO pass $form as first parameter?
+                        controller.init( 'form.or:eq(0)', formParts.model, _prepareInstance( formParts.model, settings.defaults ) );
+                        $form.add( $buttons ).removeClass( 'hide' );
+                        if ( console.timeEnd ) console.timeEnd( 'client loading time' );
+
+                        formParts.$form = $form;
+                        deferred.resolve( formParts );
+                    } );
+                } else if ( formParts ) {
+                    error = new Error( 'Form not complete.' );
+                    errors.status = 400;
+                    deferred.reject( error );
+                } else {
+                    error = new Error( 'Form not found' );
+                    error.status = 404;
+                    deferred.reject( error );
+                }
+                return deferred.promise;
             }
         } );
 } );

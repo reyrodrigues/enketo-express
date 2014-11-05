@@ -10,11 +10,11 @@ var model, survey,
     expect = chai.expect,
     chaiAsPromised = require( "chai-as-promised" ),
     redis = require( "redis" ),
-    config = require( "../config/config" ),
+    config = require( "../../config/config" ),
     client = redis.createClient( config.redis.cache.port, config.redis.cache.host, {
         auth_pass: config.redis.cache.password
     } ),
-    model = require( '../app/models/cache-model' );
+    model = require( '../../app/models/cache-model' );
 
 chai.use( chaiAsPromised );
 // select database #15 to use as the test database
@@ -153,14 +153,20 @@ describe( 'Cache Model', function() {
             promise = model.set( survey ).then( model.get );
             return Q.all( [
                 expect( promise ).to.eventually.have.property( 'form' ).that.equals( survey.form ),
-                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model )
+                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model ),
+                expect( promise ).to.eventually.have.property( 'xslHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'mediaHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'formHash' ).and.to.have.length.above( 2 )
             ] );
         } );
         it( 'returns the survey object with the form and model properties when successful', function() {
             var promise = model.set( survey ).then( model.get );
             return Q.all( [
                 expect( promise ).to.eventually.have.property( 'form' ).that.equals( survey.form ),
-                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model )
+                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model ),
+                expect( promise ).to.eventually.have.property( 'xslHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'mediaHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'formHash' ).and.to.have.length.above( 2 )
             ] );
         } );
     } );
