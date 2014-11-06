@@ -18,10 +18,10 @@
  * Deals with the main high level survey controls: saving, submitting etc.
  */
 
-define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormModel', 'file-manager', 'q', 'jquery' ],
-    function( gui, connection, settings, Form, FormModel, fileManager, Q, $ ) {
+define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormModel', 'file-manager', 'store', 'q', 'jquery' ],
+    function( gui, connection, settings, Form, FormModel, fileManager, store, Q, $ ) {
         "use strict";
-        var form, $form, $formprogress, formSelector, defaultModelStr, store;
+        var form, $form, $formprogress, formSelector, defaultModelStr;
 
         function init( selector, modelStr, instanceStrToEdit, options ) {
             var loadErrors, purpose;
@@ -38,6 +38,17 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             // DEBUG
             //window.form = form;
             //window.gui = gui;
+            window.store = store;
+            settings.offline = false;
+            if ( settings.offline ) {
+                console.debug( 'in offline mode' );
+                store.init()
+                    .then( store.isWriteable )
+                    .catch( function( e ) {
+                        console.error( e );
+                        gui.alert( 'Browser storage is required but not available. If you are in \'private browsing\` mode switch to normal mode.', 'No Storage' );
+                    } );
+            }
 
             //initialize form and check for load errors
             loadErrors = form.init();

@@ -450,7 +450,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
      * @return {number} [description]
      */
     function _setMaxSubmissionSize() {
-        var storedMaxSize = ( store ) ? store.getRecord( '__maxSize' ) : undefined,
+        var storedMaxSize = ( store && store.getRecord ) ? store.getRecord( '__maxSize' ) : undefined,
             defaultMaxSize = 5000000,
             absoluteMaxSize = 100 * 1024 * 1024;
 
@@ -468,7 +468,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
                             "maxSubmissionSize": maxSubmissionSize
                         } );
                         // store the value persistently for offline use
-                        if ( store ) {
+                        if ( store && store.setRecord ) {
                             store.setRecord( '__maxSize', maxSubmissionSize );
                         }
                     } else {

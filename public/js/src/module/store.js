@@ -65,7 +65,11 @@ define( [ 'db', 'q' ], function( db, Q ) {
                             }
                         }
                     },
-                    // choosing instanceId as the key because instanceName may change when editing a draft
+                    // Am putting records in separate table because it makes more sense for getting, updating and removing records
+                    // if they are not stores in one (giant) array or object value.
+                    // Need to watch out for bad iOS bug: http://www.raymondcamden.com/2014/9/25/IndexedDB-on-iOS-8--Broken-Bad
+                    // but with the current keys there is no risk of using the same key in multiple tables.
+                    // Am choosing instanceId as the key because instanceName may change when editing a draft.
                     records: {
                         key: {
                             keyPath: [ 'instanceId' ],
