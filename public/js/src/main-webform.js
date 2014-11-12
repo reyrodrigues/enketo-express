@@ -1,8 +1,8 @@
 require( [ 'require-config' ], function( rc ) {
     "use strict";
     if ( console.time ) console.time( 'client loading time' );
-    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'jquery' ],
-        function( gui, controller, settings, connection, FormModel, $ ) {
+    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'store', 'jquery' ],
+        function( gui, controller, settings, connection, FormModel, store, $ ) {
             var $loader = $( '.form__loader' ),
                 $form = $( 'form.or' ),
                 $buttons = $( '.form-header__button--print, button#validate-form, button#submit-form' ),
@@ -14,17 +14,66 @@ require( [ 'require-config' ], function( rc ) {
                     defaults: settings.defaults
                 };
 
-            connection.getFormParts( survey )
-                .then( function( result ) {
-                    if ( result.form && result.model ) {
-                        _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
-                    } else {
-                        throw new Error( 'Form not complete.' );
-                    }
-                } )
-                .catch( _showErrorOrAuthenticate );
+
+            if ( settings.offline ) {
+                console.debug( 'in offline mode' );
+                // TODO: is this condition actually possible?
+                if ( !settings.enketoId ) {
+                    var error = new Error( 'This view is not available as an offline-enabled view.' );
+                    _showErrorOrAuthenticate( error );
+                } else {
+                    store.init()
+                        //.then( store.isWriteable )
+                        .fail( function( e ) {
+                            console.error( e );
+                            gui.alert( 'Browser storage is required but not available or not writeable. If you are in "private browsing" mode please switch to regular mode.', 'No Storage' );
+                        } )
+                        .then( function() {
+                            return store.getForm( settings.enketoId );
+                        } )
+                        .then( function( result ) {
+                            console.debug( 'found formparts in local database!', result );
+                            if ( result.form && result.model ) {
+                                _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
+                            } else {
+                                throw new Error( 'Form not complete.' );
+                            }
+                        } )
+                        .catch( function( e ) {
+                            console.log( 'Failed to get form parts from storage, will try to obtain from server.', e );
+                            connection.getFormParts( survey )
+                                .then( function( result ) {
+                                    console.debug( 'result', result );
+                                    if ( result.form && result.model ) {
+                                        _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
+                                        result[ 'id' ] = settings.enketoId;
+                                        return store.setForm( result )
+                                            .then( function() {
+                                                console.debug( 'Form is now stored and available offline!' );
+                                            } )
+                                            .catch( _showErrorOrAuthenticate );
+                                    } else {
+                                        throw new Error( 'Form not complete.' );
+                                    }
+                                } )
+                                .catch( _showErrorOrAuthenticate );
+                        } );
+                }
+            } else {
+                console.debug( 'in online mode' );
+                connection.getFormParts( survey )
+                    .then( function( result ) {
+                        if ( result.form && result.model ) {
+                            _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
+                        } else {
+                            throw new Error( 'Form not complete.' );
+                        }
+                    } )
+                    .catch( _showErrorOrAuthenticate );
+            }
 
             function _showErrorOrAuthenticate( error ) {
+                console.log( 'error', error );
                 $loader.addClass( 'fail' );
                 if ( error.status === 401 ) {
                     window.location.href = '/login?return_url=' + encodeURIComponent( window.location.href );

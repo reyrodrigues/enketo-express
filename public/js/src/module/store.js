@@ -23,11 +23,6 @@ define( [ 'db', 'q' ], function( db, Q ) {
     var server,
         databaseName = 'enketo';
 
-    // TODO: test in old version of Safari and IE
-    if ( typeof window.Promise === 'undefined' ) {
-        window.Promise = Q.Promise;
-    }
-
     /*
     record:
         instanceName( string, indexed, unique for id)
@@ -47,12 +42,9 @@ define( [ 'db', 'q' ], function( db, Q ) {
     */
 
     function init() {
-        var deferred = Q.defer();
-
-        db
-            .open( {
+        return db.open( {
                 server: databaseName,
-                version: 0.1,
+                version: 2,
                 schema: {
                     surveys: {
                         key: {
@@ -66,7 +58,7 @@ define( [ 'db', 'q' ], function( db, Q ) {
                         }
                     },
                     // Am putting records in separate table because it makes more sense for getting, updating and removing records
-                    // if they are not stores in one (giant) array or object value.
+                    // if they are not stored in one (giant) array or object value.
                     // Need to watch out for bad iOS bug: http://www.raymondcamden.com/2014/9/25/IndexedDB-on-iOS-8--Broken-Bad
                     // but with the current keys there is no risk of using the same key in multiple tables.
                     // Am choosing instanceId as the key because instanceName may change when editing a draft.
@@ -97,17 +89,13 @@ define( [ 'db', 'q' ], function( db, Q ) {
             .then( function( s ) {
                 server = s;
                 console.debug( 'WHoohoeeee, we\'ve got ourselves a database!', s );
-                // throw new Error( 'weird error' );
-                deferred.resolve( databaseName );
-            } )
-            .catch( function( e ) {
-                console.error( e );
+                //throw new Error( 'weird error' );
+                return isWriteable();
             } );
-
-        return deferred.promise;
     }
 
     function isWriteable( dbName ) {
+        console.debug( 'checking if database is writeable' );
         return updateSetting( {
             name: 'lastLaunched',
             value: new Date().getTime()
@@ -116,6 +104,16 @@ define( [ 'db', 'q' ], function( db, Q ) {
 
     function updateSetting( setting ) {
         return server.settings.update( setting );
+    }
+
+    function getForm( id ) {
+        console.debug( 'attempting to obtain survey from storage', id );
+        return server.surveys.get( id );
+    }
+
+    function setForm( survey ) {
+        console.debug( 'attempting to store new survey', survey );
+        return server.surveys.add( survey );
     }
 
     // completely remove the database
@@ -146,6 +144,9 @@ define( [ 'db', 'q' ], function( db, Q ) {
         init: init,
         isWriteable: isWriteable,
         updateSetting: updateSetting,
-        flush: flush
+        flush: flush,
+        getForm: getForm,
+        setForm: setForm
     };
+
 } );
