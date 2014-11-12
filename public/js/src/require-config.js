@@ -22,7 +22,7 @@ require.config( {
         "foundation.core": "../../../lib/martijnr-foundation/js/foundation/foundation",
         "foundation.reveal": "../../../lib/martijnr-foundation/js/foundation/foundation.reveal",
         "q": "../../../lib/bower-components/q/q",
-        "db": "../../../lib/bower-components/db.js/src/db"
+        "db": "../../../lib/db.js/src/db"
     },
     shim: {
         "xpath": {
@@ -53,6 +53,7 @@ require.config( {
         },
         "leaflet": {
             exports: "L"
-        }
+        },
+        "db": [ 'promise-by-Q' ]
     }
 } );

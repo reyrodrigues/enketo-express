@@ -7,3 +7,6 @@
 [submodule "app/lib/martijnr-foundation"]
 	path = app/lib/martijnr-foundation
 	url = https://github.com/MartijnR/foundation.git
+[submodule "public/lib/db.js"]
+	path = public/lib/db.js
+	url = https://github.com/aaronpowell/db.js.git
