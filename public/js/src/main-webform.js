@@ -16,6 +16,8 @@ require( [ 'require-config' ], function( rc ) {
 
 
             if ( settings.offline ) {
+                var hash;
+
                 console.debug( 'in offline mode' );
                 // TODO: is this condition actually possible?
                 if ( !settings.enketoId ) {
@@ -33,6 +35,7 @@ require( [ 'require-config' ], function( rc ) {
                         } )
                         .then( function( result ) {
                             console.debug( 'found formparts in local database!', result );
+                            hash = result.hash;
                             if ( result.form && result.model ) {
                                 _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
                             } else {
@@ -46,6 +49,7 @@ require( [ 'require-config' ], function( rc ) {
                                     console.debug( 'result', result );
                                     if ( result.form && result.model ) {
                                         _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
+                                        hash = result.hash; // check if this is best location
                                         result[ 'id' ] = settings.enketoId;
                                         return store.setForm( result )
                                             .then( function() {
@@ -57,6 +61,39 @@ require( [ 'require-config' ], function( rc ) {
                                     }
                                 } )
                                 .catch( _showErrorOrAuthenticate );
+                        } )
+                        .then( function() {
+                            // check for update
+                            // update if necessary
+                            console.debug( 'going to check for form update in a few minutes' );
+                            setTimeout( function() {
+                                connection.getFormPartsHash( survey )
+                                    .then( function( version ) {
+                                        if ( hash === version ) {
+                                            console.debug( 'Form is up to date!' );
+                                        } else {
+                                            console.error( 'Form is outdated!', hash, version );
+                                            connection.getFormParts( survey )
+                                                .then( function( result ) {
+                                                    console.debug( 'result', result );
+                                                    if ( result.form && result.model ) {
+                                                        //_init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
+                                                        //hash = result.hash; // check if this is best location
+                                                        result[ 'id' ] = settings.enketoId;
+                                                        return store.updateForm( result )
+                                                            .then( function() {
+                                                                console.debug( 'Form is now updated in the store. Need to refresh.' );
+                                                                // TODO notify user to refresh
+                                                            } )
+                                                            .catch( _showErrorOrAuthenticate );
+                                                    } else {
+                                                        throw new Error( 'Form not complete.' );
+                                                    }
+                                                } )
+                                                .catch( _showErrorOrAuthenticate );
+                                        }
+                                    } );
+                            }, 5 * 1000 );
                         } );
                 }
             } else {

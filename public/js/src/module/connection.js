@@ -24,6 +24,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
         that = this,
         CONNECTION_URL = '/connection',
         TRANSFORM_URL = '/transform/xform',
+        TRANSFORM_HASH_URL = '/transform/xform/hash',
         SUBMISSION_URL = ( settings.enketoId ) ? '/submission/' + settings.enketoIdPrefix + settings.enketoId + location.search : null,
         INSTANCE_URL = ( settings.enketoId ) ? '/submission/' + settings.enketoIdPrefix + settings.enketoId : null,
         MAX_SIZE_URL = ( settings.enketoId ) ? '/submission/max-size/' + settings.enketoIdPrefix + settings.enketoId : null,
@@ -553,6 +554,25 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
         return deferred.promise;
     }
 
+    function getFormPartsHash( props ) {
+        var deferred = Q.defer();
+
+        $.ajax( TRANSFORM_HASH_URL, {
+                type: 'POST',
+                data: props
+            } )
+            .done( function( data ) {
+                deferred.resolve( data.hash );
+            } )
+            .fail( function( jqXHR, textStatus, errorMsg ) {
+                var error = jqXHR.responseJSON || new Error( errorMsg );
+                error.status = jqXHR.status;
+                deferred.reject( error );
+            } );
+
+        return deferred.promise;
+    }
+
     /**
      * Obtains cached XML instance
      *
@@ -584,6 +604,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
         getUploadOngoingID: getUploadOngoingID,
         getMaxSubmissionSize: getMaxSubmissionSize,
         getFormParts: getFormParts,
+        getFormPartsHash: getFormPartsHash,
         getExistingInstance: getExistingInstance,
         // "private" but used for tests:
         _processOpenRosaResponse: _processOpenRosaResponse,

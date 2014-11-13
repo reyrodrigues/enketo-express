@@ -116,6 +116,10 @@ define( [ 'db', 'q' ], function( db, Q ) {
         return server.surveys.add( survey );
     }
 
+    function updateForm( survey ) {
+        return server.surveys.update( survey );
+    }
+
     // completely remove the database
     // there is no db.js method for this yet
     function flush() {
@@ -146,7 +150,8 @@ define( [ 'db', 'q' ], function( db, Q ) {
         updateSetting: updateSetting,
         flush: flush,
         getForm: getForm,
-        setForm: setForm
+        setForm: setForm,
+        updateForm: updateForm
     };
 
 } );

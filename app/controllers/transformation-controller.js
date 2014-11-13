@@ -21,7 +21,8 @@ router
         res.set( 'Content-Type', 'application/json' );
         next();
     } )
-    .post( '/xform', getSurveyParts );
+    .post( '/xform', getSurveyParts )
+    .post( '/xform/hash', getCachedSurveyHash );
 
 
 /**
@@ -65,6 +66,24 @@ function getSurveyParts( req, res, next ) {
         .catch( next );
 }
 
+/**
+ * Obtains the hash of the cached Survey Parts
+ * @param  {[type]}   req  [description]
+ * @param  {[type]}   res  [description]
+ * @param  {Function} next [description]
+ * @return {[type]}        [description]
+ */
+function getCachedSurveyHash( req, res, next ) {
+    _getSurveyParams( req.body )
+        .then( function( survey ) {
+            return cacheModel.getHashes( survey );
+        } )
+        .then( function( result ) {
+            _respond( res, result );
+        } )
+        .catch( next );
+}
+
 function _getFormDirectly( survey ) {
     return communicator.getXForm( survey )
         .then( transformer.transform );
@@ -95,11 +114,12 @@ function _updateCache( survey ) {
 }
 
 function _respond( res, survey ) {
-    res.status = 200;
+    res.status( 200 );
     res.send( {
         form: survey.form,
         // previously this was JSON.stringified, not sure why
-        model: survey.model
+        model: survey.model,
+        hash: [ survey.formHash, survey.mediaHash, survey.xslHash ].join( '-' )
     } );
 }
 
