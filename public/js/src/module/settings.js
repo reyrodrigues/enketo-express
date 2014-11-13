@@ -104,7 +104,7 @@ define( [ 'text!enketo-config' ], function( config ) {
     settings.enketoId = _getEnketoId( '\/' + settings.enketoIdPrefix, window.location.pathname ) || _getEnketoId( '#', window.location.hash );
 
     // determine whether view is offline-capable
-    settings.offline = !( new RegExp( '\/' + settings.enketoIdPrefix ).test( window.location.pathname ) ) && window.location.hash;
+    settings.offline = !( new RegExp( '\/' + settings.enketoIdPrefix ).test( window.location.pathname ) ) && !!window.location.hash;
 
     function _getEnketoId( prefix, haystack ) {
         var id = new RegExp( prefix ).test( haystack ) ? haystack.substring( haystack.lastIndexOf( prefix ) + prefix.length ) : null;
