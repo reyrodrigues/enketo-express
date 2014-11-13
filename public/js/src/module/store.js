@@ -91,6 +91,13 @@ define( [ 'db', 'q' ], function( db, Q ) {
                 console.debug( 'WHoohoeeee, we\'ve got ourselves a database!', s );
                 //throw new Error( 'weird error' );
                 return isWriteable();
+            } )
+            .catch( function( e ) {
+                // make error more useful and throw it further down the line
+                var error = new Error( 'Browser storage is required but not available or not writeable. ' +
+                    'If you are in "private browsing" mode please switch to regular mode. (error: ' + e.message + ')' );
+                error.status = 500;
+                throw error;
             } );
     }
 
@@ -113,10 +120,17 @@ define( [ 'db', 'q' ], function( db, Q ) {
 
     function setForm( survey ) {
         console.debug( 'attempting to store new survey', survey );
+        if ( !survey.form || !survey.model ) {
+            throw new Error( 'Survey not complete' );
+        }
         return server.surveys.add( survey );
     }
 
     function updateForm( survey ) {
+        console.debug( 'attempting to update stored survey' );
+        if ( !survey.form || !survey.model ) {
+            throw new Error( 'Survey not complete' );
+        }
         return server.surveys.update( survey );
     }
 

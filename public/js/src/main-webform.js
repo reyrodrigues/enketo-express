@@ -1,8 +1,8 @@
 require( [ 'require-config' ], function( rc ) {
     "use strict";
     if ( console.time ) console.time( 'client loading time' );
-    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'store', 'jquery' ],
-        function( gui, controller, settings, connection, FormModel, store, $ ) {
+    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'store', 'q', 'jquery' ],
+        function( gui, controller, settings, connection, FormModel, store, Q, $ ) {
             var $loader = $( '.form__loader' ),
                 $form = $( 'form.or' ),
                 $buttons = $( '.form-header__button--print, button#validate-form, button#submit-form' ),
@@ -17,7 +17,6 @@ require( [ 'require-config' ], function( rc ) {
 
             if ( settings.offline ) {
                 var hash;
-
                 console.debug( 'in offline mode' );
                 // TODO: is this condition actually possible?
                 if ( !settings.enketoId ) {
@@ -25,98 +24,88 @@ require( [ 'require-config' ], function( rc ) {
                     _showErrorOrAuthenticate( error );
                 } else {
                     store.init()
-                        //.then( store.isWriteable )
-                        .fail( function( e ) {
-                            console.error( e );
-                            gui.alert( 'Browser storage is required but not available or not writeable. If you are in "private browsing" mode please switch to regular mode.', 'No Storage' );
-                        } )
                         .then( function() {
                             return store.getForm( settings.enketoId );
                         } )
-                        .then( function( result ) {
-                            console.debug( 'found formparts in local database!', result );
-                            hash = result.hash;
-                            if ( result.form && result.model ) {
-                                _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
-                            } else {
-                                throw new Error( 'Form not complete.' );
-                            }
+                        .then( function( formParts ) {
+                            console.debug( 'found formparts in local database!' );
+                            _init( formParts );
                         } )
+                        .then( _setUpdateIntervals )
                         .catch( function( e ) {
-                            console.log( 'Failed to get form parts from storage, will try to obtain from server.', e );
-                            connection.getFormParts( survey )
-                                .then( function( result ) {
-                                    console.debug( 'result', result );
-                                    if ( result.form && result.model ) {
-                                        _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
-                                        hash = result.hash; // check if this is best location
-                                        result[ 'id' ] = settings.enketoId;
-                                        return store.setForm( result )
-                                            .then( function() {
-                                                console.debug( 'Form is now stored and available offline!' );
-                                            } )
-                                            .catch( _showErrorOrAuthenticate );
-                                    } else {
-                                        throw new Error( 'Form not complete.' );
-                                    }
-                                } )
-                                .catch( _showErrorOrAuthenticate );
-                        } )
-                        .then( function() {
-                            // check for update
-                            // update if necessary
-                            console.debug( 'going to check for form update in a few minutes' );
-                            setTimeout( function() {
-                                connection.getFormPartsHash( survey )
-                                    .then( function( version ) {
-                                        if ( hash === version ) {
-                                            console.debug( 'Form is up to date!' );
-                                        } else {
-                                            console.error( 'Form is outdated!', hash, version );
-                                            connection.getFormParts( survey )
-                                                .then( function( result ) {
-                                                    console.debug( 'result', result );
-                                                    if ( result.form && result.model ) {
-                                                        //_init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
-                                                        //hash = result.hash; // check if this is best location
-                                                        result[ 'id' ] = settings.enketoId;
-                                                        return store.updateForm( result )
-                                                            .then( function() {
-                                                                console.debug( 'Form is now updated in the store. Need to refresh.' );
-                                                                // TODO notify user to refresh
-                                                            } )
-                                                            .catch( _showErrorOrAuthenticate );
-                                                    } else {
-                                                        throw new Error( 'Form not complete.' );
-                                                    }
-                                                } )
-                                                .catch( _showErrorOrAuthenticate );
-                                        }
-                                    } );
-                            }, 5 * 1000 );
+                            console.debug( 'Failed to get form parts from storage, will try to obtain from server.', e );
+                            if ( e.status !== 500 ) {
+                                connection.getFormParts( survey )
+                                    .then( _init )
+                                    .then( store.setForm )
+                                    .then( function() {
+                                        console.debug( 'Form is now stored and available offline!' );
+                                        // TODO store media + external data files
+                                        // TODO show offline-capable icon in UI
+                                    } )
+                                    .then( setUpdateIntervals )
+                                    .catch( _showErrorOrAuthenticate );
+                            } else {
+                                _showErrorOrAuthenticate( e );
+                            }
                         } );
                 }
             } else {
                 console.debug( 'in online mode' );
                 connection.getFormParts( survey )
-                    .then( function( result ) {
-                        if ( result.form && result.model ) {
-                            _init( result.form, result.model, _prepareInstance( result.model, settings.defaults ) );
-                        } else {
-                            throw new Error( 'Form not complete.' );
-                        }
-                    } )
+                    .then( _init )
                     .catch( _showErrorOrAuthenticate );
             }
 
             function _showErrorOrAuthenticate( error ) {
-                console.log( 'error', error );
+                error = ( typeof error === 'string' ) ? new Error( error ) : error;
+                console.log( 'error', error, error.stack );
                 $loader.addClass( 'fail' );
                 if ( error.status === 401 ) {
                     window.location.href = '/login?return_url=' + encodeURIComponent( window.location.href );
                 } else {
                     gui.alert( error.message, 'Something went wrong' );
                 }
+            }
+
+            function _setUpdateIntervals() {
+                var deferred = Q.defer();
+                // when it's pretty certain that the form has been rendered, check for form update
+                setTimeout( function() {
+                    _updateCache( survey );
+                }, 3 * 60 * 1000 );
+                // check for form update every 20 minutes
+                setInterval( function() {
+                    _updateCache( survey );
+                }, 20 * 60 * 1000 );
+                deferrred.resolve( true );
+                return deferred.promise;
+            }
+
+            function _updateCache( survey ) {
+                console.debug( 'checking need for cache update' );
+                connection.getFormPartsHash( survey )
+                    .then( function( version ) {
+                        if ( hash === version ) {
+                            console.debug( 'Form is up to date!' );
+                        } else {
+                            console.debug( 'Form is outdated!', hash, version );
+                            connection.getFormParts( survey )
+                                .then( function( formParts ) {
+                                    var deferred = Q.defer();
+                                    hash = formParts.hash; // check if this is best location
+                                    formParts[ 'id' ] = settings.enketoId;
+                                    deferred.resolve( formParts );
+                                    return deferred.promise;
+                                } )
+                                .then( store.updateForm )
+                                .then( function() {
+                                    console.debug( 'Form is now updated in the store. Need to refresh.' );
+                                    // TODO notify user to refresh
+                                } )
+                                .catch( _showErrorOrAuthenticate );
+                        }
+                    } );
             }
 
             function _prepareInstance( modelStr, defaults ) {
@@ -140,13 +129,23 @@ require( [ 'require-config' ], function( rc ) {
                 return existingInstance;
             }
 
-            function _init( formStr, modelStr, instanceStr ) {
-                $loader[ 0 ].outerHTML = formStr;
-                $( document ).ready( function() {
-                    controller.init( 'form.or:eq(0)', modelStr, instanceStr );
-                    $form.add( $buttons ).removeClass( 'hide' );
-                    if ( console.timeEnd ) console.timeEnd( 'client loading time' );
-                } );
+            function _init( formParts ) {
+                var deferred = Q.defer();
+
+                if ( formParts.form && formParts.model ) {
+                    hash = formParts.hash;
+                    formParts[ 'id' ] = settings.enketoId;
+                    $loader[ 0 ].outerHTML = formParts.form;
+                    $( document ).ready( function() {
+                        controller.init( 'form.or:eq(0)', formParts.model, _prepareInstance( formParts.model, settings.defaults ) );
+                        $form.add( $buttons ).removeClass( 'hide' );
+                        if ( console.timeEnd ) console.timeEnd( 'client loading time' );
+                        deferred.resolve( formParts );
+                    } );
+                } else {
+                    deferred.reject( new Error( 'Form not complete.' ) );
+                }
+                return deferred.promise;
             }
         } );
 } );
