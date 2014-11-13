@@ -23,7 +23,7 @@ router.param( 'enketo_id', function( req, res, next, id ) {
 } );
 
 router
-    .get( '/o', offlineWebform )
+    .get( '/\\+', offlineWebform )
     .get( '/:enketo_id', webform )
     .get( '/preview/:enketo_id', preview )
     .get( '/preview', preview )
