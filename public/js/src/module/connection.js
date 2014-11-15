@@ -554,6 +554,30 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
         return deferred.promise;
     }
 
+    /**
+     * Obtains a media/data file
+     * JQuery ajax doesn't support blob responses, so we're going native here.
+     *
+     * @return {[type]} [description]
+     */
+    function getFile( url ) {
+        var deferred = Q.defer(),
+            xhr = new XMLHttpRequest();
+
+        xhr.onreadystatechange = function() {
+            if ( this.readyState == 4 && this.status == 200 ) {
+                deferred.resolve( this.response );
+            }
+            // TODO: add fail handler
+        };
+
+        xhr.open( 'GET', url );
+        xhr.responseType = 'blob';
+        xhr.send();
+
+        return deferred.promise;
+    }
+
     function getFormPartsHash( props ) {
         var deferred = Q.defer();
 
@@ -605,6 +629,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
         getMaxSubmissionSize: getMaxSubmissionSize,
         getFormParts: getFormParts,
         getFormPartsHash: getFormPartsHash,
+        getFile: getFile,
         getExistingInstance: getExistingInstance,
         // "private" but used for tests:
         _processOpenRosaResponse: _processOpenRosaResponse,

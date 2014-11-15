@@ -28,18 +28,23 @@ require( [ 'require-config' ], function( rc ) {
                             return store.getForm( settings.enketoId );
                         } )
                         .then( function( formParts ) {
-                            console.debug( 'found formparts in local database!' );
-                            _init( formParts );
+                            console.debug( 'found formparts in local database!', formParts );
+                            return _init( formParts );
                         } )
+                        .then( _loadMedia ) // or should this be a part of init?
                         .then( _setUpdateIntervals )
                         .catch( function( e ) {
-                            console.debug( 'Failed to get form parts from storage, will try to obtain from server.', e );
+                            console.debug( 'Failed to get form parts from storage, will try to obtain from server.', e, e.stack );
                             if ( e.status !== 500 ) {
                                 connection.getFormParts( survey )
+                                    .then( _swapMediaSrc )
                                     .then( _init )
                                     .then( store.setForm )
-                                    .then( function() {
-                                        console.debug( 'Form is now stored and available offline!' );
+                                    .then( _getMedia )
+                                    .then( _loadMedia )
+                                    .then( store.updateForm )
+                                    .then( function( s ) {
+                                        console.debug( 'Form is now stored and available offline!', s );
                                         // TODO store media + external data files
                                         // TODO show offline-capable icon in UI
                                     } )
@@ -78,7 +83,7 @@ require( [ 'require-config' ], function( rc ) {
                 setInterval( function() {
                     _updateCache( survey );
                 }, 20 * 60 * 1000 );
-                deferrred.resolve( true );
+                deferred.resolve( true );
                 return deferred.promise;
             }
 
@@ -129,13 +134,89 @@ require( [ 'require-config' ], function( rc ) {
                 return existingInstance;
             }
 
-            function _init( formParts ) {
+            function _swapMediaSrc( survey ) {
                 var deferred = Q.defer();
 
-                if ( formParts.form && formParts.model ) {
+                survey.form = survey.form.replace( /(src=\"[^"]*\")/g, "data-offline-$1 src=\"\"" );
+                deferred.resolve( survey );
+
+                return deferred.promise;
+            }
+
+            function _getMedia( survey ) {
+                var deferred = Q.defer(),
+                    requests = [],
+                    urls = [],
+                    $fileResources;
+
+                // survey has become an array after setForm!!
+                survey = survey[ 0 ];
+                survey.files = {};
+
+                // TODO if an exception occurs here (e.g. calling variable that doesn't exist), it fails quietly!
+
+                console.time( 'getmedia' );
+
+                $fileResources = $( 'form.or [src]' ).each( function() {
+                    //console.debug( '$el', this );
+                    //console.debug( 'src', this.dataset.offlineSrc );
+                    var src = this.dataset.offlineSrc;
+                    // in Safari the widgets form finds on element with src = undefined
+                    if ( survey.files[ src ] === undefined && src ) {
+                        survey.files[ src ] = null;
+                        urls.push( src );
+                        requests.push( connection.getFile( src ) );
+                    }
+                } );
+
+                console.debug( 'urls to retrieve', urls );
+
+                Q.all( requests )
+                    .then( function( resources ) {
+                        resources.forEach( function( resource, index ) {
+                            var url = urls[ index ];
+                            survey.files[ url ] = resource;
+                        } );
+                        deferred.resolve( survey );
+                    } )
+                    .catch( _showErrorOrAuthenticate );
+
+                console.timeEnd( 'getmedia' );
+                return deferred.promise;
+            }
+
+            function _loadMedia( survey ) {
+                var $targets, resourceUrl,
+                    deferred = Q.defer();
+
+                console.debug( 'loading media into form', survey.files );
+
+                for ( var file in survey.files ) {
+                    if ( survey.files.hasOwnProperty( file ) ) {
+                        // TODO any error (non-existing variable called) is swallowed!!
+                        $targets = $( 'form.or [data-offline-src="' + file + '"]' );
+                        console.debug( 'target', $targets.length );
+                        console.debug( 'blob', survey.files[ file ] );
+                        var URL = window.URL || window.webkitURL;
+                        resourceUrl = URL.createObjectURL( survey.files[ file ] );
+                        console.log( 'resourceURL', resourceUrl );
+                        $targets.attr( 'src', resourceUrl );
+                    }
+                }
+                deferred.resolve( survey );
+                return deferred.promise;
+            }
+
+
+            function _init( formParts ) {
+                var $fileResources,
+                    deferred = Q.defer();
+
+                if ( formParts && formParts.form && formParts.model ) {
                     hash = formParts.hash;
                     formParts[ 'id' ] = settings.enketoId;
                     $loader[ 0 ].outerHTML = formParts.form;
+
                     $( document ).ready( function() {
                         controller.init( 'form.or:eq(0)', formParts.model, _prepareInstance( formParts.model, settings.defaults ) );
                         $form.add( $buttons ).removeClass( 'hide' );
@@ -143,6 +224,7 @@ require( [ 'require-config' ], function( rc ) {
                         deferred.resolve( formParts );
                     } );
                 } else {
+                    console.debug( 'rejecting in init' );
                     deferred.reject( new Error( 'Form not complete.' ) );
                 }
                 return deferred.promise;
