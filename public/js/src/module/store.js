@@ -88,24 +88,35 @@ define( [ 'db', 'q' ], function( db, Q ) {
             } )
             .then( function( s ) {
                 server = s;
-                console.debug( 'WHoohoeeee, we\'ve got ourselves a database!', s );
-                //throw new Error( 'weird error' );
-                return isWriteable();
+                console.debug( 'WHoohoeeee, we\'ve got ourselves a database! Now let\'s check if it works properly.', s );
             } )
+            .then( _isWriteable )
+            .then( _canStoreBlobs )
             .catch( function( e ) {
                 // make error more useful and throw it further down the line
                 var error = new Error( 'Browser storage is required but not available or not writeable. ' +
-                    'If you are in "private browsing" mode please switch to regular mode. (error: ' + e.message + ')' );
+                    'If you are in "private browsing" mode please switch to regular mode, otherwise switch to another browser. (error: ' + e.message + ')' );
                 error.status = 500;
                 throw error;
             } );
     }
 
-    function isWriteable( dbName ) {
-        console.debug( 'checking if database is writeable' );
+    function _isWriteable( dbName ) {
         return updateSetting( {
             name: 'lastLaunched',
             value: new Date().getTime()
+        } );
+    }
+
+
+    // detect older indexedDb implementations that do not support storing blobs (e.g. Safari 7)
+    function _canStoreBlobs() {
+        var oMyBlob = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
+            type: 'text/xml'
+        } );
+        return updateSetting( {
+            name: 'testBlob',
+            value: oMyBlob
         } );
     }
 
@@ -160,7 +171,6 @@ define( [ 'db', 'q' ], function( db, Q ) {
 
     return {
         init: init,
-        isWriteable: isWriteable,
         updateSetting: updateSetting,
         flush: flush,
         getForm: getForm,

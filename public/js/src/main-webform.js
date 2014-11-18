@@ -27,15 +27,13 @@ require( [ 'require-config' ], function( rc ) {
                         .then( function() {
                             return store.getForm( settings.enketoId );
                         } )
-                        .then( function( formParts ) {
-                            console.debug( 'found formparts in local database!', formParts );
-                            return _init( formParts );
-                        } )
+                        .then( _init )
                         .then( _loadMedia ) // or should this be a part of init?
                         .then( _setUpdateIntervals )
                         .catch( function( e ) {
-                            console.debug( 'Failed to get form parts from storage, will try to obtain from server.', e, e.stack );
-                            if ( e.status !== 500 ) {
+
+                            if ( e.status === 404 || e.status === 400 ) {
+                                console.debug( 'Failed to get form parts from storage, will try to obtain from server.', e, e.stack );
                                 connection.getFormParts( survey )
                                     .then( _swapMediaSrc )
                                     .then( _init )
@@ -48,7 +46,7 @@ require( [ 'require-config' ], function( rc ) {
                                         // TODO store media + external data files
                                         // TODO show offline-capable icon in UI
                                     } )
-                                    .then( setUpdateIntervals )
+                                    .then( _setUpdateIntervals )
                                     .catch( _showErrorOrAuthenticate );
                             } else {
                                 _showErrorOrAuthenticate( e );
@@ -75,6 +73,8 @@ require( [ 'require-config' ], function( rc ) {
 
             function _setUpdateIntervals() {
                 var deferred = Q.defer();
+
+                console.debug( 'setting update check intervals' );
                 // when it's pretty certain that the form has been rendered, check for form update
                 setTimeout( function() {
                     _updateCache( survey );
@@ -89,6 +89,7 @@ require( [ 'require-config' ], function( rc ) {
 
             function _updateCache( survey ) {
                 console.debug( 'checking need for cache update' );
+
                 connection.getFormPartsHash( survey )
                     .then( function( version ) {
                         if ( hash === version ) {
@@ -149,13 +150,10 @@ require( [ 'require-config' ], function( rc ) {
                     urls = [],
                     $fileResources;
 
+
                 // survey has become an array after setForm!!
                 survey = survey[ 0 ];
                 survey.files = {};
-
-                // TODO if an exception occurs here (e.g. calling variable that doesn't exist), it fails quietly!
-
-                console.time( 'getmedia' );
 
                 $fileResources = $( 'form.or [src]' ).each( function() {
                     //console.debug( '$el', this );
@@ -179,27 +177,33 @@ require( [ 'require-config' ], function( rc ) {
                         } );
                         deferred.resolve( survey );
                     } )
-                    .catch( _showErrorOrAuthenticate );
+                    .catch( deferred.reject );
 
-                console.timeEnd( 'getmedia' );
                 return deferred.promise;
+
             }
 
             function _loadMedia( survey ) {
                 var $targets, resourceUrl,
-                    deferred = Q.defer();
+                    deferred = Q.defer(),
+                    URL = window.URL || window.webkitURL;
 
                 console.debug( 'loading media into form', survey.files );
 
                 for ( var file in survey.files ) {
                     if ( survey.files.hasOwnProperty( file ) ) {
+
                         // TODO any error (non-existing variable called) is swallowed!!
                         $targets = $( 'form.or [data-offline-src="' + file + '"]' );
-                        console.debug( 'target', $targets.length );
+                        console.debug( 'target length', $targets.length );
                         console.debug( 'blob', survey.files[ file ] );
-                        var URL = window.URL || window.webkitURL;
+
                         resourceUrl = URL.createObjectURL( survey.files[ file ] );
                         console.log( 'resourceURL', resourceUrl );
+                        $( $targets[ $targets.length - 1 ] ).one( 'load', function() {
+                            //console.log( 'revoking object URL to free up memory' );
+                            URL.revokeObjectURL( resourceUrl );
+                        } );
                         $targets.attr( 'src', resourceUrl );
                     }
                 }
@@ -209,7 +213,7 @@ require( [ 'require-config' ], function( rc ) {
 
 
             function _init( formParts ) {
-                var $fileResources,
+                var $fileResources, error,
                     deferred = Q.defer();
 
                 if ( formParts && formParts.form && formParts.model ) {
@@ -223,9 +227,14 @@ require( [ 'require-config' ], function( rc ) {
                         if ( console.timeEnd ) console.timeEnd( 'client loading time' );
                         deferred.resolve( formParts );
                     } );
+                } else if ( formParts ) {
+                    error = new Error( 'Form not complete.' );
+                    errors.status = 400;
+                    deferred.reject( error );
                 } else {
-                    console.debug( 'rejecting in init' );
-                    deferred.reject( new Error( 'Form not complete.' ) );
+                    error = new Error( 'Form not found' );
+                    error.status = 404;
+                    deferred.reject( error );
                 }
                 return deferred.promise;
             }
