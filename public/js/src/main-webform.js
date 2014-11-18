@@ -200,10 +200,10 @@ require( [ 'require-config' ], function( rc ) {
 
                         resourceUrl = URL.createObjectURL( survey.files[ file ] );
                         console.log( 'resourceURL', resourceUrl );
-                        $( $targets[ $targets.length - 1 ] ).one( 'load', function() {
-                            //console.log( 'revoking object URL to free up memory' );
-                            URL.revokeObjectURL( resourceUrl );
-                        } );
+                        //$( $targets[ $targets.length - 1 ] ).one( 'load', function() {
+                        //console.log( 'revoking object URL to free up memory' );
+                        //URL.revokeObjectURL( resourceUrl );
+                        //} );
                         $targets.attr( 'src', resourceUrl );
                     }
                 }
