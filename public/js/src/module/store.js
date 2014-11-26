@@ -18,9 +18,9 @@
  * Deals with browser storage
  */
 
-define( [ 'db', 'q' ], function( db, Q ) {
+define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     "use strict";
-    var server,
+    var server, blobEncoding,
         databaseName = 'enketo';
 
     /*
@@ -101,7 +101,7 @@ define( [ 'db', 'q' ], function( db, Q ) {
                 console.debug( 'WHoohoeeee, we\'ve got ourselves a database! Now let\'s check if it works properly.', s );
             } )
             .then( _isWriteable )
-            .then( _canStoreBlobs )
+            .then( _setBlobStorageEncoding )
             .catch( function( e ) {
                 // make error more useful and throw it further down the line
                 var error = new Error( 'Browser storage is required but not available, corrupted, or not writeable. ' +
@@ -120,13 +120,32 @@ define( [ 'db', 'q' ], function( db, Q ) {
 
     // detect older indexedDb implementations that do not support storing blobs properly (e.g. Safari 7 and 8)
     function _canStoreBlobs() {
-        var oMyBlob = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
+        var aBlob = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
             type: 'text/xml'
         } );
         return updateSetting( {
             name: 'testBlob',
-            value: oMyBlob
+            value: aBlob
         } );
+    }
+
+    function _setBlobStorageEncoding() {
+        var deferred = Q.defer();
+
+        _canStoreBlobs()
+            .then( function( blobsSupported ) {
+                console.debug( 'This browser is able to store blobs directly' );
+                blobEncoding = false;
+            } )
+            .catch( function() {
+                console.debug( 'This browser is not able to store blobs directly, so blobs will be Base64 encoded' );
+                blobEncoding = true;
+            } )
+            .then( function() {
+                deferred.resolve();
+            } );
+
+        return deferred.promise;
     }
 
     function updateSetting( setting ) {
@@ -193,15 +212,7 @@ define( [ 'db', 'q' ], function( db, Q ) {
                 console.debug( 'survey', survey );
                 survey.files.forEach( function( file ) {
                     file.key = survey.id + '_' + file.key;
-                    console.debug( 'adding file ', file );
-                    // the file has the following format:
-                    // { 
-                    //      item: instance of Blob,
-                    //      key: id + '_' + url
-                    // }
-                    // because the resources table has no keypath the blob instance will be the value 
-                    // (IE doesn't like complex objects with Blob properties)
-                    tasks.push( server.resources.update( file ) );
+                    tasks.push( updateResource( file ) );
                 } );
 
                 return Q.all( tasks )
@@ -216,8 +227,40 @@ define( [ 'db', 'q' ], function( db, Q ) {
             } );
     }
 
+    /**
+     * Updates an external resource in storage or creates it if it does not yet exist
+     *
+     * @param  {{item:Blob, key:string}} resource The key consist of a concatenation of the id, _, and the URL
+     * @return {[type]}          [description]
+     */
+    function updateResource( resource ) {
+        // The format of resource is db.js way of directing it to store the blob instance as the value
+        // The resources table does not have a keyPath for this reason
+        // (IE doesn't like complex objects with Blob properties)
+        if ( blobEncoding ) {
+            return utils.blobToDataUri( resource.item )
+                .then( function( convertedBlob ) {
+                    resource.item = convertedBlob;
+                    return server.resources.update( resource );
+                } );
+        } else {
+            return server.resources.update( resource );
+        }
+    }
+
     function getResource( id, url ) {
-        return server.resources.get( id + '_' + url );
+        var deferred = Q.defer();
+
+        server.resources.get( id + '_' + url )
+            .then( function( item ) {
+                if ( item instanceof Blob ) {
+                    deferred.resolve( item );
+                } else {
+                    utils.dataUritoBlob( item ).then( deferred.resolve );
+                }
+            } );
+
+        return deferred.promise;
     }
 
     // completely remove the database
