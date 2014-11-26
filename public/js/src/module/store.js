@@ -1,5 +1,5 @@
 /**
- * @preserve Copyright 2014 Martijn van de Rijdt
+ * @preserve Copyright 2014 Martijn van de Rijdt & Harvard Humanitarian Initiative
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ define( [ 'db', 'q' ], function( db, Q ) {
     function init() {
         return db.open( {
                 server: databaseName,
-                version: 2,
+                version: 1,
                 schema: {
                     surveys: {
                         key: {
@@ -53,6 +53,16 @@ define( [ 'db', 'q' ], function( db, Q ) {
                         },
                         indexes: {
                             id: {
+                                unique: true
+                            }
+                        }
+                    },
+                    resources: {
+                        key: {
+                            autoIncrement: false
+                        },
+                        indexes: {
+                            key: {
                                 unique: true
                             }
                         }
@@ -94,7 +104,7 @@ define( [ 'db', 'q' ], function( db, Q ) {
             .then( _canStoreBlobs )
             .catch( function( e ) {
                 // make error more useful and throw it further down the line
-                var error = new Error( 'Browser storage is required but not available or not writeable. ' +
+                var error = new Error( 'Browser storage is required but not available, corrupted, or not writeable. ' +
                     'If you are in "private browsing" mode please switch to regular mode, otherwise switch to another browser. (error: ' + e.message + ')' );
                 error.status = 500;
                 throw error;
@@ -108,8 +118,7 @@ define( [ 'db', 'q' ], function( db, Q ) {
         } );
     }
 
-
-    // detect older indexedDb implementations that do not support storing blobs (e.g. Safari 7)
+    // detect older indexedDb implementations that do not support storing blobs properly (e.g. Safari 7 and 8)
     function _canStoreBlobs() {
         var oMyBlob = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
             type: 'text/xml'
@@ -124,25 +133,90 @@ define( [ 'db', 'q' ], function( db, Q ) {
         return server.settings.update( setting );
     }
 
+    /** 
+     * Obtains the form HTML and XML model from storage
+     * @param  {[type]} id [description]
+     * @return {[type]}    [description]
+     */
     function getForm( id ) {
         console.debug( 'attempting to obtain survey from storage', id );
         return server.surveys.get( id );
     }
 
+    /**
+     * Stores the form HTML and XML model
+     *
+     * @param {[type]} survey [description]
+     * @return {Promise}        [description]
+     */
     function setForm( survey ) {
         console.debug( 'attempting to store new survey', survey );
-        if ( !survey.form || !survey.model ) {
+        if ( !survey.form || !survey.model || !survey.id ) {
             throw new Error( 'Survey not complete' );
         }
         return server.surveys.add( survey );
+
+        // TODO: this resolves with array with length 1, Probably better to resolve with survey[0]
     }
 
+    /**
+     * Removes form and all the form resources
+     *
+     * @param  {[type]} id [description]
+     * @return {Promise}    [description]
+     */
+    function removeForm( id ) {
+
+    }
+
+    /**
+     * Updates the form HTML and XML model as well any external resources belonging to the form
+     *
+     * @param  {[type]} survey [description]
+     * @return {Promise}        [description]
+     */
     function updateForm( survey ) {
-        console.debug( 'attempting to update stored survey' );
-        if ( !survey.form || !survey.model ) {
+        console.debug( 'attempting to update stored survey', survey );
+        if ( !survey.form || !survey.model || !survey.id ) {
             throw new Error( 'Survey not complete' );
         }
-        return server.surveys.update( survey );
+        return server.surveys.update( {
+                form: survey.form,
+                model: survey.model,
+                id: survey.id
+            } )
+            .then( function() {
+                var tasks = [];
+
+                survey.files = survey.files || [];
+                console.debug( 'survey', survey );
+                survey.files.forEach( function( file ) {
+                    file.key = survey.id + '_' + file.key;
+                    console.debug( 'adding file ', file );
+                    // the file has the following format:
+                    // { 
+                    //      item: instance of Blob,
+                    //      key: id + '_' + url
+                    // }
+                    // because the resources table has no keypath the blob instance will be the value 
+                    // (IE doesn't like complex objects with Blob properties)
+                    tasks.push( server.resources.update( file ) );
+                } );
+
+                return Q.all( tasks )
+                    .then( function() {
+                        var deferred = Q.defer();
+                        // resolving with original survey (not the array returned by server.surveys.update)
+                        deferred.resolve( survey );
+                        return deferred.promise;
+                    } );
+
+                //TODO: better to resolve with survey object for consistency?
+            } );
+    }
+
+    function getResource( id, url ) {
+        return server.resources.get( id + '_' + url );
     }
 
     // completely remove the database
@@ -169,13 +243,28 @@ define( [ 'db', 'q' ], function( db, Q ) {
         };
     }
 
+    function logResources() {
+        server.resources
+            .query()
+            .all()
+            .execute()
+            .done( function( results ) {
+                console.log( results.length + ' resources found' );
+                results.forEach( function( item ) {
+                    console.log( item.type, item.size, URL.createObjectURL( item ) );
+                } );
+            } );
+    }
+
     return {
         init: init,
         updateSetting: updateSetting,
         flush: flush,
         getForm: getForm,
         setForm: setForm,
-        updateForm: updateForm
+        updateForm: updateForm,
+        getResource: getResource,
+        logResources: logResources
     };
 
 } );

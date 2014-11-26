@@ -39,8 +39,8 @@ require( [ 'require-config' ], function( rc ) {
                                     .then( _init )
                                     .then( store.setForm )
                                     .then( _getMedia )
-                                    .then( _loadMedia )
                                     .then( store.updateForm )
+                                    .then( _loadMedia )
                                     .then( function( s ) {
                                         console.debug( 'Form is now stored and available offline!', s );
                                         // TODO store media + external data files
@@ -104,6 +104,7 @@ require( [ 'require-config' ], function( rc ) {
                                     deferred.resolve( formParts );
                                     return deferred.promise;
                                 } )
+                                .then( _getMedia )
                                 .then( store.updateForm )
                                 .then( function() {
                                     console.debug( 'Form is now updated in the store. Need to refresh.' );
@@ -150,18 +151,18 @@ require( [ 'require-config' ], function( rc ) {
                     urls = [],
                     $fileResources;
 
-
                 // survey has become an array after setForm!!
                 survey = survey[ 0 ];
-                survey.files = {};
+                survey.files = [];
 
                 $fileResources = $( 'form.or [src]' ).each( function() {
-                    //console.debug( '$el', this );
-                    //console.debug( 'src', this.dataset.offlineSrc );
+                    // console.debug( '$el', this );
+                    // console.debug( 'src', this.dataset.offlineSrc );
                     var src = this.dataset.offlineSrc;
                     // in Safari the widgets form finds on element with src = undefined
                     if ( survey.files[ src ] === undefined && src ) {
-                        survey.files[ src ] = null;
+                        //survey.files[ src ] = null;
+                        // maintain a list of resource urls in case resources are duplicate
                         urls.push( src );
                         requests.push( connection.getFile( src ) );
                     }
@@ -173,7 +174,11 @@ require( [ 'require-config' ], function( rc ) {
                     .then( function( resources ) {
                         resources.forEach( function( resource, index ) {
                             var url = urls[ index ];
-                            survey.files[ url ] = resource;
+                            survey.files.push( {
+                                key: url,
+                                item: resource
+                            } );
+                            //survey.files[ url ] = resource;
                         } );
                         deferred.resolve( survey );
                     } )
@@ -184,29 +189,42 @@ require( [ 'require-config' ], function( rc ) {
             }
 
             function _loadMedia( survey ) {
-                var $targets, resourceUrl,
+                var resourceUrl,
+                    media = [],
                     deferred = Q.defer(),
                     URL = window.URL || window.webkitURL;
 
-                console.debug( 'loading media into form', survey.files );
+                console.debug( 'loading media into form', survey );
 
-                for ( var file in survey.files ) {
-                    if ( survey.files.hasOwnProperty( file ) ) {
-
-                        // TODO any error (non-existing variable called) is swallowed!!
-                        $targets = $( 'form.or [data-offline-src="' + file + '"]' );
-                        console.debug( 'target length', $targets.length );
-                        console.debug( 'blob', survey.files[ file ] );
-
-                        resourceUrl = URL.createObjectURL( survey.files[ file ] );
-                        console.log( 'resourceURL', resourceUrl );
-                        //$( $targets[ $targets.length - 1 ] ).one( 'load', function() {
-                        //console.log( 'revoking object URL to free up memory' );
-                        //URL.revokeObjectURL( resourceUrl );
-                        //} );
-                        $targets.attr( 'src', resourceUrl );
+                // TODO any error (non-existing variable called) is swallowed!!
+                $( 'form.or [data-offline-src]' ).each( function() {
+                    var el = this,
+                        src = this.dataset.offlineSrc;
+                    console.debug( 'going to obtain resource from storage', survey.id, src );
+                    if ( media[ src ] ) {
+                        el.src = media[ src ];
+                    } else {
+                        store.getResource( survey.id, src )
+                            .then( function( resource ) {
+                                console.debug( 'found resource in storage', resource );
+                                resourceUrl = URL.createObjectURL( resource );
+                                console.debug( 'object url created', resourceUrl );
+                                el.src = resourceUrl;
+                                media.push( {
+                                    src: resourceUrl
+                                } );
+                            } );
                     }
-                }
+
+                } );
+                // TODO: revoke objectURL if not inside a repeat
+
+
+                //$( $targets[ $targets.length - 1 ] ).one( 'load', function() {
+                //    console.log( 'revoking object URL to free up memory' );
+                //    URL.revokeObjectURL( resourceUrl );
+                // } );
+
                 deferred.resolve( survey );
                 return deferred.promise;
             }
