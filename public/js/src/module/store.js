@@ -183,7 +183,8 @@ define( [ 'db', 'q' ], function( db, Q ) {
         return server.surveys.update( {
                 form: survey.form,
                 model: survey.model,
-                id: survey.id
+                id: survey.id,
+                hash: survey.hash
             } )
             .then( function() {
                 var tasks = [];
