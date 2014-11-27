@@ -57,6 +57,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             }
                         }
                     },
+                    // the resources that belong to a form
                     resources: {
                         key: {
                             autoIncrement: false
@@ -81,6 +82,17 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                                 unique: true
                             },
                             id: {}
+                        }
+                    },
+                    // the files that belong to a record
+                    files: {
+                        key: {
+                            autoIncrement: false
+                        },
+                        indexes: {
+                            key: {
+                                unique: true
+                            }
                         }
                     },
                     settings: {
@@ -113,7 +125,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
 
     function _isWriteable( dbName ) {
         return updateSetting( {
-            name: 'lastLaunched',
+            name: 'testWrite',
             value: new Date().getTime()
         } );
     }
@@ -124,7 +136,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             type: 'text/xml'
         } );
         return updateSetting( {
-            name: 'testBlob',
+            name: 'testBlobWrite',
             value: aBlob
         } );
     }
@@ -203,7 +215,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 form: survey.form,
                 model: survey.model,
                 id: survey.id,
-                hash: survey.hash
+                hash: survey.hash,
+                resources: survey.resources
             } )
             .then( function() {
                 var tasks = [];
@@ -211,7 +224,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 survey.files = survey.files || [];
                 console.debug( 'survey', survey );
                 survey.files.forEach( function( file ) {
-                    file.key = survey.id + '_' + file.key;
+                    file.key = survey.id + ':' + file.key;
                     tasks.push( updateResource( file ) );
                 } );
 
@@ -251,7 +264,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     function getResource( id, url ) {
         var deferred = Q.defer();
 
-        server.resources.get( id + '_' + url )
+        server.resources.get( id + ':' + url )
             .then( function( item ) {
                 if ( item instanceof Blob ) {
                     deferred.resolve( item );

@@ -147,80 +147,86 @@ require( [ 'require-config' ], function( rc ) {
 
             function _getMedia( survey ) {
                 var deferred = Q.defer(),
-                    requests = [],
-                    urls = [],
-                    $fileResources;
+                    requests = [];
 
                 // survey has become an array after setForm!!
                 survey = survey[ 0 ];
                 survey.files = [];
+                survey.resources = [];
 
-                $fileResources = $( 'form.or [src]' ).each( function() {
-                    // console.debug( '$el', this );
-                    // console.debug( 'src', this.dataset.offlineSrc );
-                    var src = this.dataset.offlineSrc;
-                    // in Safari the widgets form finds on element with src = undefined
-                    if ( survey.files[ src ] === undefined && src ) {
-                        //survey.files[ src ] = null;
-                        // maintain a list of resource urls in case resources are duplicate
-                        urls.push( src );
-                        requests.push( connection.getFile( src ) );
-                    }
+                _getElementsGroupedBySrc().forEach( function( elements ) {
+                    var src = elements[ 0 ].dataset.offlineSrc;
+                    survey.resources.push( src );
+                    requests.push( connection.getFile( src ) );
                 } );
 
-                console.debug( 'urls to retrieve', urls );
+                console.debug( 'urls to retrieve', survey.resources );
 
                 Q.all( requests )
                     .then( function( resources ) {
                         resources.forEach( function( resource, index ) {
-                            var url = urls[ index ];
+                            var url = survey.resources[ index ];
+
                             survey.files.push( {
                                 key: url,
                                 item: resource
                             } );
-                            //survey.files[ url ] = resource;
                         } );
                         deferred.resolve( survey );
                     } )
                     .catch( deferred.reject );
 
                 return deferred.promise;
+            }
 
+            function _getElementsGroupedBySrc() {
+                var groupedElements = [],
+                    urls = {},
+                    $els = $( 'form.or [data-offline-src]' );
+
+                $els.each( function() {
+                    if ( !urls[ this.dataset.offlineSrc ] ) {
+                        var src = this.dataset.offlineSrc,
+                            $group = $els.filter( function() {
+                                if ( this.dataset.offlineSrc === src ) {
+                                    // remove from $els to improve performance
+                                    $els = $els.not( '[data-offline-src="' + src + '"]' );
+                                    return true;
+                                }
+                            } );
+
+                        urls[ src ] = true;
+                        groupedElements.push( $.makeArray( $group ) );
+                    }
+                } );
+
+                return groupedElements;
             }
 
             function _loadMedia( survey ) {
                 var resourceUrl,
-                    media = [],
                     deferred = Q.defer(),
                     URL = window.URL || window.webkitURL;
 
-                console.debug( 'loading media into form', survey );
+                _getElementsGroupedBySrc().forEach( function( elements ) {
+                    var src = elements[ 0 ].dataset.offlineSrc;
 
-                // TODO any error (non-existing variable called) is swallowed!!
-                $( 'form.or [data-offline-src]' ).each( function() {
-                    var el = this,
-                        src = this.dataset.offlineSrc;
-                    console.debug( 'going to obtain resource from storage', survey.id, src );
-                    if ( media[ src ] ) {
-                        el.src = media[ src ];
-                    } else {
-                        store.getResource( survey.id, src )
-                            .then( function( resource ) {
-                                console.debug( 'found resource in storage', resource );
-                                resourceUrl = URL.createObjectURL( resource );
-                                console.debug( 'object url created', resourceUrl );
-                                el.src = resourceUrl;
-                                media.push( {
-                                    src: resourceUrl
-                                } );
+                    store.getResource( survey.id, src )
+                        .then( function( resource ) {
+                            // var srcUsedInsideRepeat;
+                            // create a resourceURL
+                            resourceUrl = URL.createObjectURL( resource );
+                            // add this resourceURL as the src for all elements in the group
+                            elements.forEach( function( element ) {
+                                element.src = resourceUrl;
+                                // srcUsedInsideRepeat = srcUsedInsideRepeat || $(element).closest('.or-repeat').length > 0;
                             } );
-                    }
-
+                        } );
                 } );
+
                 // TODO: revoke objectURL if not inside a repeat
-
-
-                //$( $targets[ $targets.length - 1 ] ).one( 'load', function() {
+                // add eventhandler to last element in a group?
+                // $( element ).one( 'load', function() {
                 //    console.log( 'revoking object URL to free up memory' );
                 //    URL.revokeObjectURL( resourceUrl );
                 // } );
