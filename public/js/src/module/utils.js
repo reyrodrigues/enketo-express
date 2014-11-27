@@ -1,5 +1,7 @@
-define( [], function() {
+define( [ 'q' ], function( Q ) {
     "use strict";
+
+    var hasArrayBufferView = new Blob( [ new Uint8Array( 100 ) ] ).size == 100;
 
     function blobToDataUri( blob ) {
         var deferred = Q.defer(),
@@ -20,7 +22,6 @@ define( [], function() {
 
     function dataUriToBlob( dataURI ) {
         var byteString, mimeString, buffer, array, blob,
-            hasArrayBufferView = new Blob( [ new Uint8Array( 100 ) ] ).size == 100, // move this to outside function
             deferred = Q.defer();
 
         try {

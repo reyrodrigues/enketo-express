@@ -256,7 +256,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 if ( item instanceof Blob ) {
                     deferred.resolve( item );
                 } else {
-                    utils.dataUritoBlob( item ).then( deferred.resolve );
+                    utils.dataUriToBlob( item ).then( deferred.resolve );
                 }
             } );
 
@@ -287,18 +287,38 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         };
     }
 
-    function logResources() {
-        server.resources
-            .query()
-            .all()
-            .execute()
-            .done( function( results ) {
-                console.log( results.length + ' resources found' );
-                results.forEach( function( item ) {
-                    console.log( item.type, item.size, URL.createObjectURL( item ) );
+    // debugging utilities: should move elsewehere or be turned into useful functions that return promises
+    var dump = {
+        resources: function() {
+            server.resources
+                .query()
+                .all()
+                .execute()
+                .done( function( results ) {
+                    console.log( results.length + ' resources found' );
+                    results.forEach( function( item ) {
+                        if ( item instanceof Blob ) {
+                            console.log( item.type, item.size, URL.createObjectURL( item ) );
+                        } else {
+                            console.log( 'resource string with length ', item.length, 'found' );
+                        }
+                    } );
+
                 } );
-            } );
-    }
+        },
+        surveys: function() {
+            server.surveys
+                .query()
+                .all()
+                .execute()
+                .done( function( results ) {
+                    console.log( results.length + ' surveys found' );
+                    results.forEach( function( item ) {
+                        console.log( 'survey', item );
+                    } );
+                } );
+        }
+    };
 
     return {
         init: init,
@@ -308,7 +328,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         setForm: setForm,
         updateForm: updateForm,
         getResource: getResource,
-        logResources: logResources
+        dump: dump
     };
 
 } );
