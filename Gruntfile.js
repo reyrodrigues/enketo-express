@@ -99,7 +99,7 @@ module.exports = function( grunt ) {
                 browsers: [ 'PhantomJS' ]
             },
             browsers: {
-                browsers: [ 'Chrome', 'Safari', 'Firefox', 'Opera' ]
+                browsers: [ 'Chrome', 'ChromeCanary', 'Safari', 'Firefox', 'Opera' ]
             }
         },
         requirejs: {
