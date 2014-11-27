@@ -179,18 +179,18 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * Db.js get and update functions return arrays. This function extracts the first item of the array
      * and passed it along.
      *
-     * @param  {[type]} array [description]
-     * @return {[type]}       [description]
+     * @param  {<*>} array Array of retrieve database items.
+     * @return {Promise}       [description]
      */
-    function _firstItemOnly( array ) {
+    function _firstItemOnly( results ) {
         var deferred = Q.defer();
 
-        if ( Object.prototype.toString.call( array ) === '[object Array]' ) {
+        if ( Object.prototype.toString.call( results ) === '[object Array]' ) {
             // if an array
-            deferred.resolve( surveys[ 0 ] );
+            deferred.resolve( results[ 0 ] );
         } else {
             // if not an array
-            deferred.resolve( array );
+            deferred.resolve( results );
         }
 
         return deferred.promise;
@@ -207,9 +207,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         if ( !survey.form || !survey.model || !survey.id ) {
             throw new Error( 'Survey not complete' );
         }
-        return server.surveys.add( survey );
-
-        // TODO: this resolves with array with length 1, Probably better to resolve with survey[0]
+        return server.surveys.add( survey )
+            .then( _firstItemOnly );
     }
 
     /**
