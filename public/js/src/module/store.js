@@ -165,22 +165,44 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     /** 
-     * Obtains the form HTML and XML model from storage
+     * Obtains a single survey's form HTML and XML model from storage
      * @param  {[type]} id [description]
      * @return {[type]}    [description]
      */
-    function getForm( id ) {
+    function getSurvey( id ) {
         console.debug( 'attempting to obtain survey from storage', id );
-        return server.surveys.get( id );
+        return server.surveys.get( id )
+            .then( _firstItemOnly );
     }
 
     /**
-     * Stores the form HTML and XML model
+     * Db.js get and update functions return arrays. This function extracts the first item of the array
+     * and passed it along.
+     *
+     * @param  {[type]} array [description]
+     * @return {[type]}       [description]
+     */
+    function _firstItemOnly( array ) {
+        var deferred = Q.defer();
+
+        if ( Object.prototype.toString.call( array ) === '[object Array]' ) {
+            // if an array
+            deferred.resolve( surveys[ 0 ] );
+        } else {
+            // if not an array
+            deferred.resolve( array );
+        }
+
+        return deferred.promise;
+    }
+
+    /**
+     * Stores a single survey's form HTML and XML model
      *
      * @param {[type]} survey [description]
      * @return {Promise}        [description]
      */
-    function setForm( survey ) {
+    function setSurvey( survey ) {
         console.debug( 'attempting to store new survey', survey );
         if ( !survey.form || !survey.model || !survey.id ) {
             throw new Error( 'Survey not complete' );
@@ -196,17 +218,17 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @param  {[type]} id [description]
      * @return {Promise}    [description]
      */
-    function removeForm( id ) {
+    function removeSurvey( id ) {
 
     }
 
     /**
-     * Updates the form HTML and XML model as well any external resources belonging to the form
+     * Updates a single survey's form HTML and XML model as well any external resources belonging to the form
      *
      * @param  {[type]} survey [description]
      * @return {Promise}        [description]
      */
-    function updateForm( survey ) {
+    function updateSurvey( survey ) {
         console.debug( 'attempting to update stored survey', survey );
         if ( !survey.form || !survey.model || !survey.id ) {
             throw new Error( 'Survey not complete' );
@@ -337,9 +359,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         init: init,
         updateSetting: updateSetting,
         flush: flush,
-        getForm: getForm,
-        setForm: setForm,
-        updateForm: updateForm,
+        getSurvey: getSurvey,
+        setSurvey: setSurvey,
+        updateSurvey: updateSurvey,
         getResource: getResource,
         dump: dump
     };

@@ -25,7 +25,7 @@ require( [ 'require-config' ], function( rc ) {
                 } else {
                     store.init()
                         .then( function() {
-                            return store.getForm( settings.enketoId );
+                            return store.getSurvey( settings.enketoId );
                         } )
                         .then( _init )
                         .then( _loadMedia ) // or should this be a part of init?
@@ -37,9 +37,9 @@ require( [ 'require-config' ], function( rc ) {
                                 connection.getFormParts( survey )
                                     .then( _swapMediaSrc )
                                     .then( _init )
-                                    .then( store.setForm )
+                                    .then( store.setSurvey )
                                     .then( _getMedia )
-                                    .then( store.updateForm )
+                                    .then( store.updateSurvey )
                                     .then( _loadMedia )
                                     .then( function( s ) {
                                         console.debug( 'Form is now stored and available offline!', s );
@@ -105,13 +105,16 @@ require( [ 'require-config' ], function( rc ) {
                                     return deferred.promise;
                                 } )
                                 .then( _getMedia )
-                                .then( store.updateForm )
+                                .then( store.updateSurvey )
                                 .then( function() {
                                     console.debug( 'Form is now updated in the store. Need to refresh.' );
                                     // TODO notify user to refresh
                                 } )
                                 .catch( _showErrorOrAuthenticate );
                         }
+                    } )
+                    .catch( function( error ) {
+                        console.log( 'Could not obtain latest survey hash from server. Probably offline.' );
                     } );
             }
 
@@ -149,8 +152,6 @@ require( [ 'require-config' ], function( rc ) {
                 var deferred = Q.defer(),
                     requests = [];
 
-                // survey has become an array after setForm!!
-                survey = survey[ 0 ];
                 survey.files = [];
                 survey.resources = [];
 
