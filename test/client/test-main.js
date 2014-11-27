@@ -20,7 +20,8 @@ require.config( {
     baseUrl: '/base',
 
     paths: {
-        'module': 'public/js/src/module'
+        'module': 'public/js/src/module',
+        'q': 'public/lib/bower-components/q/q'
     },
 
     // dynamically load all test files

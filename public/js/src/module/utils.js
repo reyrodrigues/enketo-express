@@ -1,7 +1,7 @@
 define( [ 'q' ], function( Q ) {
     "use strict";
 
-    var hasArrayBufferView = new Blob( [ new Uint8Array( 100 ) ] ).size == 100;
+    //var hasArrayBufferView = new Blob( [ new Uint8Array( 100 ) ] ).size == 100;
 
     function blobToDataUri( blob ) {
         var deferred = Q.defer(),
@@ -39,9 +39,9 @@ define( [ 'q' ], function( Q ) {
                 array[ i ] = byteString.charCodeAt( i );
             }
 
-            if ( !hasArrayBufferView ) {
+            /*if ( !hasArrayBufferView ) {
                 array = buffer;
-            }
+            }*/
 
             // write the ArrayBuffer to a blob
             blob = new Blob( [ array ], {

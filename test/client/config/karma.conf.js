@@ -20,9 +20,12 @@ module.exports = function( config ) {
                 pattern: 'test/client/**/*.spec.js',
                 included: false
             }, {
+                pattern: 'public/lib/bower-components/q/q.js',
+                included: false
+            }, {
                 pattern: 'public/js/src/module/**/*.js',
                 included: false
-            }
+            },
         ],
 
 
