@@ -15,13 +15,17 @@ Object.keys( window.__karma__.files ).forEach( function( file ) {
     }
 } );
 
+// TODO It should be possible to load /public/js/src/require-config and then override the baseUrl
+// and the additional properties below
+
 require.config( {
     // Karma serves files under /base, which is the basePath from your config file
-    baseUrl: '/base',
+    baseUrl: '/base/public/js/src/module',
 
     paths: {
-        'module': 'public/js/src/module',
-        'q': 'public/lib/bower-components/q/q'
+        'test': '../../../../test',
+        'q': '../../../lib/bower-components/q/q',
+        'db': '../../../lib/db.js/src/db'
     },
 
     // dynamically load all test files

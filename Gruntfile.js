@@ -91,15 +91,16 @@ module.exports = function( grunt ) {
         // test client JS
         karma: {
             options: {
-                configFile: 'test/client/config/karma.conf.js',
                 singleRun: true,
                 reporters: 'dots'
             },
             headless: {
+                configFile: 'test/client/config/headless-karma.conf.js',
                 browsers: [ 'PhantomJS' ]
             },
             browsers: {
-                browsers: [ 'Chrome', 'ChromeCanary', 'Safari', 'Firefox', 'Opera' ]
+                configFile: 'test/client/config/browser-karma.conf.js',
+                browsers: [ 'Chrome', /*'ChromeCanary', */ 'Safari', 'Firefox', 'Opera' ]
             }
         },
         requirejs: {
