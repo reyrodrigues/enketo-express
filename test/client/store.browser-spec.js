@@ -29,10 +29,15 @@ define( [ 'store' ], function( store ) {
                     done();
                 } )
                 .catch( done );
-
         } );
 
         describe( 'storing settings', function() {
+
+            beforeEach( function( done ) {
+                store.flush()
+                    .then( store.init )
+                    .then( done );
+            } );
 
             it( 'fails if the setting object has no "name" property', function( done ) {
                 store.updateSetting( {
@@ -107,6 +112,12 @@ define( [ 'store' ], function( store ) {
 
         describe( 'storing (form) resources', function() {
 
+            beforeEach( function( done ) {
+                store.flush()
+                    .then( store.init )
+                    .then( done );
+            } );
+
             it( 'fails if the resource has no "key" property', function( done ) {
                 store.updateResource( {
                         something: 'something'
@@ -138,7 +149,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'succeeds if key and item are present and item is a Blob', function( done ) {
-                var id = 'YYYp',
+                var id = 'TESt',
                     url = '/some/path/for/example',
                     type = 'text/xml',
                     res1 = {
@@ -165,6 +176,64 @@ define( [ 'store' ], function( store ) {
         } );
 
         describe( 'storing surveys', function() {
+            var survey,
+                setSurveyTest = function() {
+                    return store.setSurvey( survey );
+                };
+
+            beforeEach( function( done ) {
+                survey = {
+                    id: 'TESt',
+                    form: '<form class="or"></form>',
+                    model: '<model></model>',
+                    hash: '12345'
+                };
+
+                store.flush()
+                    .then( store.init )
+                    .then( done );
+            } );
+
+            it( 'fails if the survey has no "form" property', function() {
+                delete survey.form;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( setSurveyTest ).to.throw( /not complete/ );
+            } );
+
+            it( 'fails if the survey has no "model" property', function() {
+                delete survey.model;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( setSurveyTest ).to.throw( /not complete/ );
+            } );
+
+            it( 'fails if the survey has no "id" property', function() {
+                delete survey.id;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( setSurveyTest ).to.throw( /not complete/ );
+            } );
+
+            it( 'fails if the survey has no "hash" property', function() {
+                delete survey.hash;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( setSurveyTest ).to.throw( /not complete/ );
+            } );
+
+            it( 'succeeds if the survey has the required properties and doesn\'t exist already', function( done ) {
+                setSurveyTest()
+                    .then( function( result ) {
+                        expect( result ).to.deep.equal( survey );
+                        done();
+                    } );
+            } );
+
+            it( 'fails if a survey with that id already exists in the db', function( done ) {
+                setSurveyTest()
+                    .then( setSurveyTest )
+                    .catch( function( e ) {
+                        expect( true ).to.equal( true );
+                        done();
+                    } );
+            } );
 
         } );
     } );

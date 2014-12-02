@@ -210,7 +210,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      */
     function setSurvey( survey ) {
         console.debug( 'attempting to store new survey', survey );
-        if ( !survey.form || !survey.model || !survey.id ) {
+        if ( !survey.form || !survey.model || !survey.id || !survey.hash ) {
             throw new Error( 'Survey not complete' );
         }
         return server.surveys.add( survey )
@@ -321,7 +321,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
 
         request.onsuccess = function() {
             console.log( "Deleted database successfully" );
-            deferred.resolve( databaseName );
+            deferred.resolve();
         };
         request.onerror = function( error ) {
             deferred.reject( error );
@@ -329,6 +329,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         request.onblocked = function( error ) {
             deferred.reject( error );
         };
+
+        return deferred.promise;
     }
 
     // debugging utilities: should move elsewehere or be turned into useful functions that return promises
@@ -347,7 +349,6 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             console.log( 'resource string with length ', item.length, 'found' );
                         }
                     } );
-
                 } );
         },
         surveys: function() {
