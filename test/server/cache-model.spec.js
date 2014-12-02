@@ -153,14 +153,20 @@ describe( 'Cache Model', function() {
             promise = model.set( survey ).then( model.get );
             return Q.all( [
                 expect( promise ).to.eventually.have.property( 'form' ).that.equals( survey.form ),
-                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model )
+                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model ),
+                expect( promise ).to.eventually.have.property( 'xslHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'mediaHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'formHash' ).and.to.have.length.above( 2 )
             ] );
         } );
         it( 'returns the survey object with the form and model properties when successful', function() {
             var promise = model.set( survey ).then( model.get );
             return Q.all( [
                 expect( promise ).to.eventually.have.property( 'form' ).that.equals( survey.form ),
-                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model )
+                expect( promise ).to.eventually.have.property( 'model' ).that.equals( survey.model ),
+                expect( promise ).to.eventually.have.property( 'xslHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'mediaHash' ).and.to.have.length.above( 2 ),
+                expect( promise ).to.eventually.have.property( 'formHash' ).and.to.have.length.above( 2 )
             ] );
         } );
     } );
