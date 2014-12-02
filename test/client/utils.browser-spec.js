@@ -10,9 +10,13 @@ define( [ 'utils' ], function( utils ) {
             var aBlob1 = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
                     type: 'text/xml'
                 } ),
+                aBlob1Type = aBlob1.type,
+                aBlob1Size = aBlob1.size,
                 aBlob2 = new Blob( [ '<a id="a">将来の仏教研究は急速に発展す</a>' ], {
                     type: 'text/xml'
-                } );
+                } ),
+                aBlob2Size = aBlob2.size,
+                aBlob2Type = aBlob2.type;
 
             it( 'converts a blob to a string', function( done ) {
                 utils.blobToDataUri( aBlob1 )
@@ -26,9 +30,9 @@ define( [ 'utils' ], function( utils ) {
                 utils.blobToDataUri( aBlob1 )
                     .then( utils.dataUriToBlob )
                     .then( function( result ) {
-                        expect( result.size ).to.equal( aBlob1.size );
-                        expect( result.type ).to.equal( aBlob1.type );
-                        expect( result ).to.deep.equal( aBlob1 );
+                        expect( result.size ).to.equal( aBlob1Size );
+                        expect( result.type ).to.equal( aBlob1Type );
+                        expect( result ).to.be.an.instanceof( Blob );
                         done();
                     } );
             } );
@@ -37,9 +41,9 @@ define( [ 'utils' ], function( utils ) {
                 utils.blobToDataUri( aBlob2 )
                     .then( utils.dataUriToBlob )
                     .then( function( result ) {
-                        expect( result.size ).to.equal( aBlob2.size );
-                        expect( result.type ).to.equal( aBlob2.type );
-                        expect( result ).to.deep.equal( aBlob2 );
+                        expect( result.size ).to.equal( aBlob2Size );
+                        expect( result.type ).to.equal( aBlob2Type );
+                        expect( result ).to.be.an.instanceof( Blob );
                         done();
                     } );
             } );

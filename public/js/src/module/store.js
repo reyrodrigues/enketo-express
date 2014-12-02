@@ -280,17 +280,14 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         // (IE doesn't like complex objects with Blob properties)
         console.log( 'updating resource', resource, 'to be encoded', blobEncoding );
 
-        if ( resource.item && !( resource.item instanceof Blob ) ) {
-            throw new Error( 'wtf are you doing?' );
-        } else if ( blobEncoding ) {
+        if ( blobEncoding && resource && resource.item instanceof Blob ) {
             return utils.blobToDataUri( resource.item )
                 .then( function( convertedBlob ) {
                     resource.item = convertedBlob;
                     return server.resources.update( resource );
                 } );
         } else {
-            return server.resources.update( resource )
-                .then( _firstItemOnly );
+            return server.resources.update( resource );
         }
     }
 

@@ -140,21 +140,23 @@ define( [ 'store' ], function( store ) {
             it( 'succeeds if key and item are present and item is a Blob', function( done ) {
                 var id = 'YYYp',
                     url = '/some/path/for/example',
-                    resource = {
+                    type = 'text/xml',
+                    res1 = {
                         key: id + ':' + url,
                         item: new Blob( [ '<html>something</html' ], {
-                            type: "text/html"
+                            type: "text/xml"
                         } )
-                    };
+                    },
+                    size = res1.item.size;
 
-                store.updateResource( resource )
-                    .then( function() {
+                store.updateResource( res1 )
+                    .then( function( stored ) {
                         return store.getResource( id, url );
                     } )
                     .then( function( result ) {
-                        expect( result.type ).to.equal( resource.item.type );
-                        expect( result.size ).to.equal( resource.item.size );
-                        //expect( result ).to.deep.equal( resource.item );
+                        expect( result.type ).to.equal( type );
+                        expect( result.size ).to.equal( size );
+                        expect( result ).to.be.an.instanceof( Blob );
                         done();
                     } )
                     .catch( done );

@@ -100,7 +100,7 @@ module.exports = function( grunt ) {
             },
             browsers: {
                 configFile: 'test/client/config/browser-karma.conf.js',
-                browsers: [ 'Chrome', /*'ChromeCanary', */ 'Safari', 'Firefox', 'Opera' ]
+                browsers: [ 'Chrome', 'ChromeCanary', 'Safari', 'Firefox', 'Opera' ]
             }
         },
         requirejs: {
