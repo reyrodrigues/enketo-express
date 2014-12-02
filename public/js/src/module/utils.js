@@ -15,7 +15,13 @@ define( [ 'q' ], function( Q ) {
             deferred.reject( e );
         };
 
-        reader.readAsDataURL( blob );
+        // There is some quirky Chrome and Safari behaviour if blob is undefined or a string
+        // so we peform an additional check
+        if ( !( blob instanceof Blob ) ) {
+            deferred.reject( new Error( 'TypeError: Require Blob' ) );
+        } else {
+            reader.readAsDataURL( blob );
+        }
 
         return deferred.promise;
     }

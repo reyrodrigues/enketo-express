@@ -5,8 +5,6 @@ define( [ 'utils' ], function( utils ) {
 
     describe( 'Client Utilities', function() {
 
-        expect( true ).to.equal( true );
-
         describe( 'blob <-> dataURI conversion', function() {
 
             var aBlob1 = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
@@ -42,6 +40,42 @@ define( [ 'utils' ], function( utils ) {
                         expect( result.size ).to.equal( aBlob2.size );
                         expect( result.type ).to.equal( aBlob2.type );
                         expect( result ).to.deep.equal( aBlob2 );
+                        done();
+                    } );
+            } );
+
+            it( 'fails to convert a string', function( done ) {
+                utils.blobToDataUri( 'a string' )
+                    .then( utils.dataUriToBlob )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'TypeError' );
+                        done();
+                    } );
+            } );
+
+            it( 'fails to convert undefined', function( done ) {
+                utils.blobToDataUri( undefined )
+                    .then( utils.dataUriToBlob )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'TypeError' );
+                        done();
+                    } );
+            } );
+
+            it( 'fails to convert false', function( done ) {
+                utils.blobToDataUri( false )
+                    .then( utils.dataUriToBlob )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'TypeError' );
+                        done();
+                    } );
+            } );
+
+            it( 'fails to convert null', function( done ) {
+                utils.blobToDataUri( null )
+                    .then( utils.dataUriToBlob )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'TypeError' );
                         done();
                     } );
             } );

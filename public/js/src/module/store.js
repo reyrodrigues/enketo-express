@@ -110,7 +110,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             } )
             .then( function( s ) {
                 server = s;
-                console.debug( 'WHoohoeeee, we\'ve got ourselves a database! Now let\'s check if it works properly.', s );
+                console.debug( 'WHoohoeeee, we\'ve got ourselves a database! Now let\'s check if it works properly.' );
             } )
             .then( _isWriteable )
             .then( _setBlobStorageEncoding )
@@ -161,7 +161,13 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     function updateSetting( setting ) {
-        return server.settings.update( setting );
+        return server.settings.update( setting )
+            .then( _firstItemOnly );
+    }
+
+    function getSetting( name ) {
+        return server.settings.get( name )
+            .then( _firstItemOnly );
     }
 
     /** 
@@ -262,7 +268,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     /**
-     * Updates an external resource in storage or creates it if it does not yet exist
+     * Updates an external resource in storage or creates it if it does not yet exist. This function is exported
+     * for testing purposes, but not actually used as a public function in Enketo.
      *
      * @param  {{item:Blob, key:string}} resource The key consist of a concatenation of the id, _, and the URL
      * @return {[type]}          [description]
@@ -271,14 +278,19 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         // The format of resource is db.js way of directing it to store the blob instance as the value
         // The resources table does not have a keyPath for this reason
         // (IE doesn't like complex objects with Blob properties)
-        if ( blobEncoding ) {
+        console.log( 'updating resource', resource, 'to be encoded', blobEncoding );
+
+        if ( resource.item && !( resource.item instanceof Blob ) ) {
+            throw new Error( 'wtf are you doing?' );
+        } else if ( blobEncoding ) {
             return utils.blobToDataUri( resource.item )
                 .then( function( convertedBlob ) {
                     resource.item = convertedBlob;
                     return server.resources.update( resource );
                 } );
         } else {
-            return server.resources.update( resource );
+            return server.resources.update( resource )
+                .then( _firstItemOnly );
         }
     }
 
@@ -292,7 +304,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 } else {
                     utils.dataUriToBlob( item ).then( deferred.resolve );
                 }
-            } );
+            } )
+            .catch( deferred.reject );
 
         return deferred.promise;
     }
@@ -356,12 +369,14 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
 
     return {
         init: init,
+        getSetting: getSetting,
         updateSetting: updateSetting,
         flush: flush,
         getSurvey: getSurvey,
         setSurvey: setSurvey,
         updateSurvey: updateSurvey,
         getResource: getResource,
+        updateResource: updateResource,
         dump: dump
     };
 
