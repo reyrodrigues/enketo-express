@@ -15,22 +15,43 @@ module.exports = function( config ) {
 
 
         // list of files / patterns to load in the browser
-        files: [ 'test/client/test-main.js', {
-            pattern: 'test/client/**/*.spec.js',
-            included: false
-        }, {
-            pattern: 'test/client/**/*.browser-spec.js',
-            included: false
-        }, {
-            pattern: 'public/lib/bower-components/q/q.js',
-            included: false
-        }, {
-            pattern: 'public/lib/db.js/src/db.js',
-            included: false
-        }, {
-            pattern: 'public/js/src/**/*.js',
-            included: false
-        }, ],
+        files: [
+            'public/js/src/require-config.js',
+            'test/client/test-main.js', {
+                pattern: 'test/client/**/*.spec.js',
+                included: false
+            }, {
+                pattern: 'config/config.json',
+                included: false
+            }, {
+                pattern: 'test/client/**/*.browser-spec.js',
+                included: false
+            }, {
+                pattern: 'public/lib/bower-components/q/q.js',
+                included: false
+            }, {
+                pattern: 'public/lib/bower-components/jquery/dist/jquery.js',
+                included: false
+            }, {
+                pattern: 'public/lib/db.js/src/db.js',
+                included: false
+            }, {
+                pattern: 'public/js/src/**/*.js',
+                included: false
+            }, {
+                pattern: 'public/lib/enketo-core/lib/Modernizr.js',
+                included: false
+            }, {
+                pattern: 'public/lib/martijnr-foundation/js/foundation/foundation.js',
+                included: false
+            }, {
+                pattern: 'public/lib/martijnr-foundation/js/foundation/foundation.reveal.js',
+                included: false
+            }, {
+                pattern: 'public/lib/enketo-core/lib/text/text.js',
+                included: false
+            }
+        ],
 
 
         // list of files to exclude

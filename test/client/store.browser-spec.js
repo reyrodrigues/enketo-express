@@ -183,7 +183,7 @@ define( [ 'store' ], function( store ) {
 
             beforeEach( function( done ) {
                 survey = {
-                    id: 'TESt',
+                    enketoId: 'TESt',
                     form: '<form class="or"></form>',
                     model: '<model></model>',
                     hash: '12345'
@@ -207,7 +207,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the survey has no "id" property', function() {
-                delete survey.id;
+                delete survey.enketoId;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( setSurveyTest ).to.throw( /not complete/ );
             } );

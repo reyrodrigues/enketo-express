@@ -48,11 +48,11 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 schema: {
                     surveys: {
                         key: {
-                            keyPath: 'id',
+                            keyPath: 'enketoId',
                             autoIncrement: false
                         },
                         indexes: {
-                            id: {
+                            enketoId: {
                                 unique: true
                             }
                         }
@@ -81,7 +81,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             instanceName: {
                                 unique: true
                             },
-                            id: {}
+                            instanceId: {}
                         }
                     },
                     // the files that belong to a record
@@ -209,8 +209,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise}        [description]
      */
     function setSurvey( survey ) {
-        console.debug( 'attempting to store new survey', survey );
-        if ( !survey.form || !survey.model || !survey.id || !survey.hash ) {
+        console.debug( 'attempting to store new survey' );
+        if ( !survey.form || !survey.model || !survey.enketoId || !survey.hash ) {
             throw new Error( 'Survey not complete' );
         }
         return server.surveys.add( survey )
@@ -218,7 +218,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     /**
-     * Removes form and all the form resources
+     * Removes survey form and all its resources
      *
      * @param  {[type]} id [description]
      * @return {Promise}    [description]
@@ -234,14 +234,14 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise}        [description]
      */
     function updateSurvey( survey ) {
-        console.debug( 'attempting to update stored survey', survey );
-        if ( !survey.form || !survey.model || !survey.id ) {
+        console.debug( 'attempting to update stored survey' );
+        if ( !survey.form || !survey.model || !survey.enketoId ) {
             throw new Error( 'Survey not complete' );
         }
         return server.surveys.update( {
                 form: survey.form,
                 model: survey.model,
-                id: survey.id,
+                enketoId: survey.enketoId,
                 hash: survey.hash,
                 resources: survey.resources
             } )
@@ -249,9 +249,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 var tasks = [];
 
                 survey.files = survey.files || [];
-                console.debug( 'survey', survey );
+
                 survey.files.forEach( function( file ) {
-                    file.key = survey.id + ':' + file.key;
+                    file.key = survey.enketoId + ':' + file.key;
                     tasks.push( updateResource( file ) );
                 } );
 
@@ -333,6 +333,16 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         return deferred.promise;
     }
 
+    /**
+     * Removes a table from the store
+     *
+     * @param  {string} table [description]
+     * @return {Promise}       [description]
+     */
+    function flushTable( table ) {
+        return server[ table ].clear();
+    }
+
     // debugging utilities: should move elsewehere or be turned into useful functions that return promises
     var dump = {
         resources: function() {
@@ -370,6 +380,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         getSetting: getSetting,
         updateSetting: updateSetting,
         flush: flush,
+        flushTable: flushTable,
         getSurvey: getSurvey,
         setSurvey: setSurvey,
         updateSurvey: updateSurvey,

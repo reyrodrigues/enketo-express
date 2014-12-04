@@ -543,6 +543,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
                 data: props
             } )
             .done( function( data ) {
+                data.enketoId = props.enketoId;
                 deferred.resolve( data );
             } )
             .fail( function( jqXHR, textStatus, errorMsg ) {
@@ -583,7 +584,9 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
 
         $.ajax( TRANSFORM_HASH_URL, {
                 type: 'POST',
-                data: props
+                data: {
+                    enketoId: props.enketoId
+                }
             } )
             .done( function( data ) {
                 deferred.resolve( data.hash );
