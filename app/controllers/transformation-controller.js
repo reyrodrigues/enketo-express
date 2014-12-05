@@ -51,6 +51,7 @@ function getSurveyParts( req, res, next ) {
                             // immediately serve from cache without first checking for updates
                             _respond( res, result );
                             // update cache if necessary, asynchronously AFTER responding
+                            // This is the ONLY mechanism by with an online-only form will be updated
                             _updateCache( survey );
                         } else {
                             _updateCache( survey )
@@ -74,12 +75,18 @@ function getSurveyParts( req, res, next ) {
  * @return {[type]}        [description]
  */
 function getCachedSurveyHash( req, res, next ) {
+    var s;
     _getSurveyParams( req.body )
         .then( function( survey ) {
+            s = survey;
             return cacheModel.getHashes( survey );
         } )
         .then( function( result ) {
             _respond( res, result );
+            // update cache if necessary, asynchronously AFTER responding
+            // this is the ONLY mechanism by which a locally browser-stored form
+            // will be updated
+            _updateCache( s );
         } )
         .catch( next );
 }
@@ -93,6 +100,10 @@ function _getFormFromCache( survey ) {
     return cacheModel.get( survey );
 }
 
+/**
+ * Update the Cache if neccesary. This function never returns anything.
+ * @param  {[type]} survey [description]
+ */
 function _updateCache( survey ) {
     return communicator.getXFormInfo( survey )
         .then( communicator.getManifest )
@@ -104,11 +115,13 @@ function _updateCache( survey ) {
             }
         } )
         .catch( function( error ) {
-            if ( error.status === 401 ) {
+
+            if ( error.status === 401 || error.status === 404 ) {
                 cacheModel.flush( survey );
             } else {
                 console.error( 'Unknown Error occurred during attempt to update cache', error );
             }
+
             throw error;
         } );
 }

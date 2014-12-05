@@ -224,7 +224,20 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise}    [description]
      */
     function removeSurvey( id ) {
+        var resources,
+            tasks = [];
 
+        return getSurvey( id )
+            .then( function( survey ) {
+                console.debug( 'survey found', survey );
+                resources = survey.resources || [];
+                resources.forEach( function( resource ) {
+                    console.debug( 'adding removal of ', resource, 'to remove task queue' );
+                    tasks.push( removeResource( id, resource ) );
+                } );
+                tasks.push( server.surveys.remove( id ) );
+                return Q.all( tasks );
+            } );
     }
 
     /**
@@ -307,6 +320,11 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         return deferred.promise;
     }
 
+
+    function removeResource( id, url ) {
+        return server.resources.remove( id + ':' + url );
+    }
+
     // completely remove the database
     // there is no db.js method for this yet
     function flush() {
@@ -384,6 +402,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         getSurvey: getSurvey,
         setSurvey: setSurvey,
         updateSurvey: updateSurvey,
+        removeSurvey: removeSurvey,
         getResource: getResource,
         updateResource: updateResource,
         dump: dump

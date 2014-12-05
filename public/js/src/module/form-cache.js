@@ -55,7 +55,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
     }
 
     function remove( survey ) {
-
+        return store.removeSurvey( survey.enketoId );
     }
 
     function update( survey ) {
@@ -196,25 +196,40 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
                 if ( hash === version ) {
                     console.debug( 'Cached survey is up to date!' );
                 } else {
-                    console.debug( 'Cached survey is outdated!', hash, version );
-                    connection.getFormParts( survey )
+                    console.debug( 'Cached survey is outdated! old:', hash, 'new:', version );
+                    return connection.getFormParts( survey )
                         .then( function( formParts ) {
                             var deferred = Q.defer();
-                            hash = formParts.hash; // check if this is best location
-                            //formParts.enketoId = settings.enketoId;
+                            // media will be updated next time the form is loaded if resources is undefined
+                            formParts.resources = undefined;
                             deferred.resolve( formParts );
                             return deferred.promise;
                         } )
-                        .then( updateMedia )
+                        .then( _swapMediaSrc )
+                        .then( store.updateSurvey )
                         .then( function() {
-                            console.debug( 'Survey is now updated in the store. Need to refresh.' );
+                            // set the hash so that subsequent update checks won't redownload the form
+                            hash = formParts.hash;
                             // TODO notify user to refresh or trigger event on form
-                        } )
-                        .catch( _showErrorOrAuthenticate );
+                            console.debug( 'Survey is now updated in the store. Need to refresh.' );
+                        } );
                 }
             } )
             .catch( function( error ) {
-                console.log( 'Could not obtain latest survey hash from server. Probably offline.' );
+                // if the form has been de-activated or removed from the server
+                if ( error.status === 404 ) {
+                    // remove it from the store
+                    remove( survey )
+                        .then( function() {
+                            // TODO notify user to refresh or trigger event on form
+                            console.log( 'survey ' + survey.enketoId + ' removed from storage' );
+                        } )
+                        .catch( function( e ) {
+                            console.error( 'an error occurred when attempting to remove the survey from storage', e );
+                        } );
+                } else {
+                    console.log( 'Could not obtain latest survey or hash from server or failed to save it. Probably offline.', error.stack );
+                }
             } );
     }
 

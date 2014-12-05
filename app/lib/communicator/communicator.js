@@ -198,7 +198,7 @@ function _xmlToJson( xml ) {
  * @return {[type]}             promise
  */
 function _findFormAddInfo( formListXml, survey ) {
-    var found, index,
+    var found, index, error,
         deferred = Q.defer();
 
     debug( 'looking for form object with id "' + survey.openRosaId + '" in formlist' );
@@ -211,7 +211,9 @@ function _findFormAddInfo( formListXml, survey ) {
                 return xform.formID.toString() === survey.openRosaId;
             } );
             if ( !found ) {
-                deferred.reject( new Error( 'Form with ID ' + survey.openRosaId + ' not found in /formList' ) );
+                error = new Error( 'Form with ID "' + survey.openRosaId + '" not found on the form server.' );
+                error.status = 404;
+                deferred.reject( error );
             } else {
                 debug( 'found form' );
                 survey.info = _simplifyFormObj( formListObj.xforms.xform[ index ] );

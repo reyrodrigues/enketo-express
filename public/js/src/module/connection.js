@@ -540,7 +540,12 @@ define( [ 'gui', 'settings', 'store', 'q', 'jquery' ], function( gui, settings, 
 
         $.ajax( TRANSFORM_URL, {
                 type: 'POST',
-                data: props
+                data: {
+                    enketoId: props.enketoId,
+                    serverUrl: props.serverUrl,
+                    xformId: props.xformId,
+                    xformUrl: props.xformUrl
+                }
             } )
             .done( function( data ) {
                 data.enketoId = props.enketoId;
