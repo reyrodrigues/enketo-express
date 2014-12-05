@@ -164,7 +164,7 @@ function setSurvey( survey ) {
                 debug( 'cache has been updated' );
                 // expire in 30 days
                 client.expire( key, expiry );
-                deferred.resolve( obj );
+                deferred.resolve( survey );
             }
         } );
     }
