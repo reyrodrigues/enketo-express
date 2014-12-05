@@ -132,7 +132,11 @@ function _respond( res, survey ) {
         form: survey.form,
         // previously this was JSON.stringified, not sure why
         model: survey.model,
-        hash: [ survey.formHash, survey.mediaHash, survey.xslHash ].join( '-' )
+        // The hash components are converted to deal with a node_redis limitation with storing and retrieving null.
+        // If a form contains no media this hash is null, which would be an empty string upon first load.
+        // Subsequent cache checks will however get the value 'null' causing the form cache to be unnecessarily refreshed
+        // on the client.
+        hash: [ String( survey.formHash ), String( survey.mediaHash ), String( survey.xslHash ) ].join( '-' )
     } );
 }
 

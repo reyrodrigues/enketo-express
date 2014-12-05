@@ -207,9 +207,9 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
                         } )
                         .then( _swapMediaSrc )
                         .then( store.updateSurvey )
-                        .then( function() {
+                        .then( function( result ) {
                             // set the hash so that subsequent update checks won't redownload the form
-                            hash = formParts.hash;
+                            hash = result.hash;
                             // TODO notify user to refresh or trigger event on form
                             console.debug( 'Survey is now updated in the store. Need to refresh.' );
                         } );

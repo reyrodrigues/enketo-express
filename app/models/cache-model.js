@@ -134,6 +134,7 @@ function isCacheUpToDate( survey ) {
 
 /**
  * Adds an item to the cache
+ *
  * @param {[type]} survey [description]
  */
 function setSurvey( survey ) {
@@ -163,7 +164,7 @@ function setSurvey( survey ) {
                 debug( 'cache has been updated' );
                 // expire in 30 days
                 client.expire( key, expiry );
-                deferred.resolve( survey );
+                deferred.resolve( obj );
             }
         } );
     }
