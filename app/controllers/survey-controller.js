@@ -42,12 +42,14 @@ function offlineWebform( req, res, next ) {
         error.status = 412;
         next( error );
     } else {
+        req.offline = true;
         webform( req, res, next );
     }
 }
 
 function webform( req, res, next ) {
     var survey = {
+        offline: !!req.offline,
         iframe: !!req.query.iframe
     };
 

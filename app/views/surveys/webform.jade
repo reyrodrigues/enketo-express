@@ -19,5 +19,6 @@ block content
       unless form
         div.form__loader
       include component/_form-footer
-    
+  if offline
+    include component/_side-slider
   include component/_dialogs
