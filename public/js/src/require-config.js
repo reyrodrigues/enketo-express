@@ -23,7 +23,8 @@ require.config( {
         "foundation.reveal": "../../../lib/martijnr-foundation/js/foundation/foundation.reveal",
         "q": "../../../lib/bower-components/q/q",
         "i18next": "../../../lib/bower-components/i18next/i18next.amd",
-        "print": "../../../lib/enketo-core/src/js/print"
+        "print": "../../../lib/enketo-core/src/js/print",
+        "db": "../../../lib/db.js/src/db"
     },
     shim: {
         "xpath": {
@@ -54,11 +55,7 @@ require.config( {
         },
         "leaflet": {
             exports: "L"
-        }
+        },
+        "db": [ 'promise-by-Q' ]
     }
-} );
-
-define( 'store', function() {
-    "use strict";
-    return undefined;
 } );

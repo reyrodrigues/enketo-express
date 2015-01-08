@@ -25,6 +25,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
         CONNECTION_URL = '/connection',
         // location.search is added to pass the lang= parameter, in case this is used to override browser/system locale
         TRANSFORM_URL = '/transform/xform' + location.search,
+        TRANSFORM_HASH_URL = '/transform/xform/hash',
         SUBMISSION_URL = ( settings.enketoId ) ? '/submission/' + settings.enketoIdPrefix + settings.enketoId + location.search : null,
         INSTANCE_URL = ( settings.enketoId ) ? '/submission/' + settings.enketoIdPrefix + settings.enketoId : null,
         MAX_SIZE_URL = ( settings.enketoId ) ? '/submission/max-size/' + settings.enketoIdPrefix + settings.enketoId : null,
@@ -453,7 +454,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
      * @return {number} [description]
      */
     function _setMaxSubmissionSize() {
-        var storedMaxSize = ( store ) ? store.getRecord( '__maxSize' ) : undefined,
+        var storedMaxSize = ( store && store.getRecord ) ? store.getRecord( '__maxSize' ) : undefined,
             defaultMaxSize = 5000000,
             absoluteMaxSize = 100 * 1024 * 1024;
 
@@ -471,7 +472,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
                             "maxSubmissionSize": maxSubmissionSize
                         } );
                         // store the value persistently for offline use
-                        if ( store ) {
+                        if ( store && store.setRecord ) {
                             store.setRecord( '__maxSize', maxSubmissionSize );
                         }
                     } else {
@@ -542,10 +543,61 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
 
         $.ajax( TRANSFORM_URL, {
                 type: 'POST',
-                data: props
+                data: {
+                    enketoId: props.enketoId,
+                    serverUrl: props.serverUrl,
+                    xformId: props.xformId,
+                    xformUrl: props.xformUrl
+                }
             } )
             .done( function( data ) {
+                data.enketoId = props.enketoId;
                 deferred.resolve( data );
+            } )
+            .fail( function( jqXHR, textStatus, errorMsg ) {
+                var error = jqXHR.responseJSON || new Error( errorMsg );
+                error.status = jqXHR.status;
+                deferred.reject( error );
+            } );
+
+        return deferred.promise;
+    }
+
+    /**
+     * Obtains a media/data file
+     * JQuery ajax doesn't support blob responses, so we're going native here.
+     *
+     * @return {[type]} [description]
+     */
+    function getFile( url ) {
+        var deferred = Q.defer(),
+            xhr = new XMLHttpRequest();
+
+        xhr.onreadystatechange = function() {
+            if ( this.readyState == 4 && this.status == 200 ) {
+                deferred.resolve( this.response );
+            }
+            // TODO: add fail handler
+        };
+
+        xhr.open( 'GET', url );
+        xhr.responseType = 'blob';
+        xhr.send();
+
+        return deferred.promise;
+    }
+
+    function getFormPartsHash( props ) {
+        var deferred = Q.defer();
+
+        $.ajax( TRANSFORM_HASH_URL, {
+                type: 'POST',
+                data: {
+                    enketoId: props.enketoId
+                }
+            } )
+            .done( function( data ) {
+                deferred.resolve( data.hash );
             } )
             .fail( function( jqXHR, textStatus, errorMsg ) {
                 var error = jqXHR.responseJSON || new Error( errorMsg );
@@ -587,6 +639,8 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
         getUploadOngoingID: getUploadOngoingID,
         getMaxSubmissionSize: getMaxSubmissionSize,
         getFormParts: getFormParts,
+        getFormPartsHash: getFormPartsHash,
+        getFile: getFile,
         getExistingInstance: getExistingInstance,
         // "private" but used for tests:
         _processOpenRosaResponse: _processOpenRosaResponse,

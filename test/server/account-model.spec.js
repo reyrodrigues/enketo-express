@@ -9,9 +9,9 @@ var model,
     chai = require( "chai" ),
     expect = chai.expect,
     chaiAsPromised = require( "chai-as-promised" ),
-    app = require( '../config/express' ),
-    model = require( '../app/models/account-model' ),
-    config = require( "../config/config" );
+    app = require( '../../config/express' ),
+    model = require( '../../app/models/account-model' ),
+    config = require( "../../config/config" );
 
 chai.use( chaiAsPromised );
 

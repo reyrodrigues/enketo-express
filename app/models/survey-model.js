@@ -35,7 +35,7 @@ function getSurvey( id ) {
         client.hgetall( 'id:' + id, function( error, obj ) {
             if ( error ) {
                 deferred.reject( error );
-            } else if ( !obj || obj.active === 'false' ) {
+            } else if ( !obj || obj.active === 'false' || obj.active === false ) {
                 error = ( !obj ) ? new TError( 'error.surveyidnotfound' ) : new TError( 'error.surveyidnotactive' );
                 error.status = 404;
                 deferred.reject( error );

@@ -14,11 +14,11 @@ var Q = require( "q" ),
     expect = chai.expect,
     chaiAsPromised = require( "chai-as-promised" ),
     request = require( 'supertest' ),
-    app = require( '../config/express' ),
-    surveyModel = require( '../app/models/survey-model' ),
-    instanceModel = require( '../app/models/instance-model' ),
+    app = require( '../../config/express' ),
+    surveyModel = require( '../../app/models/survey-model' ),
+    instanceModel = require( '../../app/models/instance-model' ),
     redis = require( "redis" ),
-    config = require( "../config/config" ),
+    config = require( "../../config/config" ),
     client = redis.createClient( config.redis.main.port, config.redis.main.host, {
         auth_pass: config.redis.main.password
     } );
