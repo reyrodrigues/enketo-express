@@ -75,13 +75,15 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                     // Am choosing instanceId as the key because instanceName may change when editing a draft.
                     records: {
                         key: {
-                            keyPath: [ 'instanceId' ],
+                            keyPath: 'instanceId',
                         },
                         indexes: {
-                            instanceName: {
+                            name: {
                                 unique: true
                             },
-                            instanceId: {}
+                            instanceId: {
+                                unique: true
+                            }
                         }
                     },
                     // the files that belong to a record
@@ -95,7 +97,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             }
                         }
                     },
-                    settings: {
+                    properties: {
                         key: {
                             keyPath: 'name',
                             autoIncrement: false
@@ -124,7 +126,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     function _isWriteable( dbName ) {
-        return updateSetting( {
+        return updateProperty( {
             name: 'testWrite',
             value: new Date().getTime()
         } );
@@ -135,7 +137,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         var aBlob = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
             type: 'text/xml'
         } );
-        return updateSetting( {
+        return updateProperty( {
             name: 'testBlobWrite',
             value: aBlob
         } );
@@ -160,13 +162,13 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         return deferred.promise;
     }
 
-    function updateSetting( setting ) {
-        return server.settings.update( setting )
+    function updateProperty( property ) {
+        return server.properties.update( property )
             .then( _firstItemOnly );
     }
 
-    function getSetting( name ) {
-        return server.settings.get( name )
+    function getProperty( name ) {
+        return server.properties.get( name )
             .then( _firstItemOnly );
     }
 
@@ -320,7 +322,6 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         return deferred.promise;
     }
 
-
     function removeResource( id, url ) {
         return server.resources.remove( id + ':' + url );
     }
@@ -390,13 +391,16 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                         console.log( 'survey', item );
                     } );
                 } );
+        },
+        records: function() {
+
         }
     };
 
     return {
         init: init,
-        getSetting: getSetting,
-        updateSetting: updateSetting,
+        getProperty: getProperty,
+        updateProperty: updateProperty,
         flush: flush,
         flushTable: flushTable,
         getSurvey: getSurvey,

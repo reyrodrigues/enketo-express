@@ -18,8 +18,8 @@
  * Deals with the main high level survey controls: saving, submitting etc.
  */
 
-define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormModel', 'file-manager', 'q', 'translator', 'jquery' ],
-    function( gui, connection, settings, Form, FormModel, fileManager, Q, t, $ ) {
+define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormModel', 'file-manager', 'q', 'translator', 'records-queue', 'jquery' ],
+    function( gui, connection, settings, Form, FormModel, fileManager, Q, t, records, $ ) {
         "use strict";
         var form, $form, $formprogress, formSelector, defaultModelStr;
 
@@ -39,7 +39,6 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             //window.form = form;
             //window.gui = gui;
             //window.store = store;
-
 
             //initialize form and check for load errors
             loadErrors = form.init();
@@ -148,6 +147,119 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             } );
         }
 
+        function getRecordName() {
+            return records.getCounterValue()
+                .then( function( counter ) {
+                    return form.getRecordName() || form.getSurveyName() + ' - ' + counter;
+                } );
+        }
+
+        function confirmRecordName( name ) {
+            texts = {
+                dialog: 'save',
+                msg: '',
+                heading: t( 'formfooter.savedraft.label' ),
+                errorMsg: error
+            };
+            choices = {
+                posButton: t( 'confirm.save.posButton' ),
+                negButton: t( 'confirm.default.negButton' ),
+                posAction: function( values ) {
+                    // if the record is new or
+                    // if the record was previously loaded from storage and saved under the same name
+                    if ( !form.getRecordName() || form.getRecordName() === values[ 'record-name' ] ) {
+                        saveRecord( values[ 'record-name' ], true );
+                    } else {
+                        gui.confirm( {
+                            msg: t( 'confirm.save.renamemsg', {
+                                currentName: '"' + form.getRecordName() + '"',
+                                newName: '"' + values[ 'record-name' ] + '"'
+                            } )
+                        }, {
+                            posAction: function() {
+                                saveRecord( values[ 'record-name' ], true );
+                            }
+                        } );
+                    }
+                },
+                negAction: function() {
+                    return false;
+                }
+            };
+            gui.confirm( texts, choices, {
+                'record-name': recordName
+            } );
+        }
+
+        function saveRecord( recordName, confirmed, error ) {
+            var texts, choices, record, saveResult, saveMethod,
+                draft = getDraftStatus();
+
+            console.log( 'saveRecord called with recordname:', recordName, 'confirmed:', confirmed, "error:", error, 'draft:', draft );
+
+            // triggering before save to update possible 'end' timestamp in form
+            $form.trigger( 'beforesave' );
+
+            // check validity of record if necessary
+            if ( !draft && !form.validate() ) {
+                gui.alert( 'Form contains errors <br/>(please see fields marked in red)' );
+                return;
+            }
+
+            // check recordName
+            if ( !recordName ) {
+                return getRecordName()
+                    .then( function( name ) {
+                        saveRecord( name );
+                    } );
+            }
+
+            // check whether record name is confirmed if necessary
+            if ( draft && !confirmed ) {
+                return confirmRecordName( recordName )
+                    .then( function() {
+                        saveRecord( recordName, true );
+                    } );
+            }
+
+            // save the record
+            record = {
+                'draft': draft,
+                'data': form.getDataStr( true, true ),
+                'name': recordName,
+                'instanceId': form.getInstanceID(),
+                'files': null // TODO
+            };
+
+            saveMethod = form.getRecordName() === recordName ? 'update' : 'set';
+
+            records[ saveMethod ]( record )
+                .then( function() {
+                    console.log( 'XML save successful!' );
+                    // save any media files to the media storage but let fail quietly
+                    // fileManager.saveCurrentFiles().fin( function() {
+                    resetForm( true );
+                    // $form.trigger( 'save', JSON.stringify( store.getRecordList() ) );
+
+                    if ( draft ) {
+                        gui.feedback( 'Record stored as draft.', 3 );
+                    } else {
+                        // try to send the record immediately
+                        gui.feedback( 'Record queued for submission.', 3 );
+                        // submitOneForced( recordName, record );
+                    }
+                } )
+                .catch( function( error ) {
+                    console.error( 'save error', error );
+                    saveRecord( undefined, false, t( 'confirm.save.error', {
+                        error: error.message
+                    } ) );
+                } );
+
+            // gui.alert( 'Error trying to save data locally (message: ' + saveResult + ')' );
+        }
+
+
         /**
          * Builds up a record array including media files, divided into batches
          *
@@ -248,8 +360,12 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     var $button = $( this );
                     $button.btnBusyState( true );
                     setTimeout( function() {
-                        form.validate();
-                        submitRecord();
+                        if ( settings.offline ) {
+                            saveRecord();
+                        } else {
+                            form.validate();
+                            submitRecord();
+                        }
                         $button.btnBusyState( false );
                         return false;
                     }, 100 );
@@ -281,6 +397,11 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             if ( inIframe() && settings.parentWindowOrigin ) {
                 $( document ).on( 'submissionsuccess edited', postEventAsMessageToParentWindow );
             }
+
+            $( '.form-footer [name="draft"]' ).on( 'change', function() {
+                var text = ( $( this ).prop( 'checked' ) ) ? t( "formfooter.savedraft.btn" ) : t( "formfooter.submit.btn" );
+                $( '#submit-form i' ).text( ' ' + text );
+            } ).closest( '.draft' ).toggleClass( 'hide', !settings.offline );
         }
 
         function setDraftStatus( status ) {
