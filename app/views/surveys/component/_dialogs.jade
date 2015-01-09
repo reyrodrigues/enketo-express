@@ -57,21 +57,19 @@
     button.btn.btn-default.negative(type="button", aria-hidden="true") Close
     button.btn.btn-primary.positive(type="button", aria-hidden="true") Prepare
 
-#dialog-save.modal.fade(role="dialog", aria-labelledby="dialog-save-title", aria-hidden="true", data-keyboard="true")
-  .modal-dialog
-    .modal-content 
-      .modal-header
-        button.close(type="button", data-dismiss="modal", aria-hidden="true") &times;
-        h3#dialog-save-title
-      .modal-body
-        form(onsubmit="return false;")
-          .alert.alert-danger
-          label
-            span= t('confirm.save.name')
-            span.or-hint.active= t('confirm.save.hint') 
-            input(name="record-name", type="text", required="required")
-      .modal-footer
-        span.self-destruct-timer
-        button.btn.negative Close
-        button.btn.btn-primary.positive Save &amp; Close
+#dialog-save.modal(role="dialog", aria-labelledby="dialog-save-title", aria-hidden="true", data-keyboard="true", data-reveal)
+  .modal__header
+    button.btn-icon-only.close-reveal-modal(type="button", aria-hidden="true") &times;
+    h3#dialog-save-title
+  .modal__body
+    form(onsubmit="return false;")
+      p.alert-box.error
+      label
+        span= t('confirm.save.name')
+        span.or-hint.active= t('confirm.save.hint') 
+        input(name="record-name", type="text", required="required")
+  .modal__footer
+    span.self-destruct-timer
+    button.btn.btn-default.negative Close
+    button.btn.btn-primary.positive Save &amp; Close
 

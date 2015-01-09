@@ -76,7 +76,7 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'jquery', 'plugin
             return false;
         } );
 
-        $( document ).on( 'click', '.side-slider .close', function( event ) {
+        $( document ).on( 'click', '.side-slider .close, .slider-overlay', function( event ) {
             $( 'body' ).removeClass( 'show-side-slider' );
         } );
 
@@ -84,7 +84,7 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'jquery', 'plugin
             printForm( confirm );
         } );
 
-        $( '.side-slider-toggle' ).on( 'click', function() {
+        $( '.side-slider__toggle' ).on( 'click', function() {
             var $body = $( 'body' );
             window.scrollTo( 0, 0 );
             $body.toggleClass( 'show-side-slider' );

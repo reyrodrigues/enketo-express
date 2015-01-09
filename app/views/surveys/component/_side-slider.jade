@@ -1,7 +1,13 @@
-aside.side-slider
-	button(type="button", class="close", data-dismiss="side-slider", aria-hidden="true") ×
-	nav
-	div.content
-button.handle.side-slider-toggle.open
-button.handle.side-slider-toggle.close
+aside.record-list.side-slider
+	button.btn-icon-only.close(type="button", aria-hidden="true") ×
+	h3= t('record-list.title')
+	p= t('record-list.msg1')
+	progress.record-list__upload-progress
+	ul.record-list__records: li.record-list__records--none= t('record-list.norecords')
+	p!= t('record-list.msg2', {icon: '<span class="icon icon-pencil"> </span>'})
+	.record-list__button-bar
+		button.record-list__button-bar.export.btn.btn-default= t('record-list.export')
+		button.record-list__button-bar.upload.btn.btn-primary= t('record-list.upload') 
+button.side-slider__toggle.open
+button.side-slider__toggle.close
 div.side-slider-toggle.slider-overlay

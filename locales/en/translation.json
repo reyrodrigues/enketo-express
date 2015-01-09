@@ -88,9 +88,12 @@
       "reminder": "Remember to set these same print settings in the browser's print menu afterwards!"
     },
     "save": {
+      "error": "An error occurred. The record was not saved. Error: __error__",
       "hint": "This name allows you to easily find your draft record to finish it later. The record name will not be submitted to the server.",
       "msg": "There are unsaved changes, would you like to continue without saving those?",
-      "name": "Record Name"
+      "name": "Record Name",
+      "posButton": "Save & Close",
+      "renamemsg": "Are you sure you want to rename __currentName__ to __newName__?"
     }
   },
   "contact": {
@@ -125,6 +128,18 @@
       "return": "Return to Beginning"
     }
   },
+  "formfooter": {
+    "savedraft": {
+      "btn": "Save Draft",
+      "label": "Save as Draft"
+    },
+    "submit": {
+      "btn": "Submit"
+    },
+    "validate": {
+      "btn": "Validate"
+    }
+  },
   "here": "here",
   "home": {
     "msg": "__appTitle__ is running! Please access Enketo forms from your __serverName__ installation."
@@ -139,6 +154,14 @@
       "msg1": "Ouch! Sorry, you were probably sent here because your browser is outdated or perhaps it has its key features disabled by using 'private browsing' mode.",
       "msg2": "If you are using an outdated browser, we recommend upgrading to a recent version of one of the following excellent modern browsers:"
     }
+  },
+  "record-list": {
+    "export": "Export",
+    "msg1": "Records are stored inside your browser until they have been uploaded (even if you turn off your computer or go offline).",
+    "msg2": "Queued records, except those marked as draft __icon__, are uploaded automatically, in the background, every 5 minutes when the web page is open and an Internet connection is available. To force an upload in between automatic attempts, click Upload.",
+    "norecords": "no records queued",
+    "title": "Queue",
+    "upload": "Upload"
   },
   "submission": {
     "http0": "Failed (Offline?).",
