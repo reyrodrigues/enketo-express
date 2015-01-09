@@ -15,13 +15,14 @@
         margin-top: 40px;
         position: relative;
         height: 50px;
+        text-align: right;
         .btn {
-            float: right;
             margin-bottom: 0;
             margin-left: 30px;
         }
         .self-destruct-timer {
             position: absolute;
+            left: 0;
             bottom: 0;
             color: $text-muted;
         }
@@ -62,7 +63,6 @@
         @extend .form-control;
     }
 }
-
 
 .load-error {
     margin: 100px 0 60px 0;
