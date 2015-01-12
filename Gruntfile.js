@@ -108,7 +108,7 @@ module.exports = function( grunt ) {
         karma: {
             options: {
                 singleRun: true,
-                reporters: 'dots'
+                reporters: [ 'dots' ]
             },
             headless: {
                 configFile: 'test/client/config/headless-karma.conf.js',
@@ -116,7 +116,7 @@ module.exports = function( grunt ) {
             },
             browsers: {
                 configFile: 'test/client/config/browser-karma.conf.js',
-                browsers: [ 'Chrome', 'ChromeCanary', 'Safari', 'Firefox', 'Opera' ]
+                browsers: [ 'Chrome' /*, 'ChromeCanary', */ /*'Safari',*/ , 'Firefox' /*, 'Opera'*/ ]
             }
         },
         requirejs: {

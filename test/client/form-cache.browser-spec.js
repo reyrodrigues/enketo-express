@@ -18,7 +18,7 @@ define( 'connection', [ 'q' ], function( Q ) {
     };
 } );
 
-require( [ 'form-cache' ], function( formCache ) {
+require( [ 'form-cache', 'connection' ], function( formCache, connection ) {
 
     describe( 'Client Form Cache', function() {
         var survey;
@@ -54,17 +54,19 @@ require( [ 'form-cache' ], function( formCache ) {
                     } );
             } );
             */
-
+            /*
             it( 'initializes succesfully', function( done ) {
-                // TODO need a stub/spy for connection.js function called
+                var spy = sinon.spy( connection.getFormParts );
+
                 formCache.init( survey )
-                    .then( function( result ) {
-                        console.log( 'result', result );
-                        expect( result ).to.deep.equal( survey );
+                    .then( function( result ) {} )
+                    .catch( function( error ) {
+                        expect( spy ).to.have.been.called;
+                        expect( spy ).to.have.been.calledWith( survey );
                         done();
                     } );
             } );
-
+            */
         } );
 
         describe( 'in cached state', function() {
