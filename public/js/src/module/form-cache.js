@@ -244,10 +244,8 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
                 store.flushTable( 'resources' );
             } )
             .then( function() {
-                var deferred = Q.defer();
-                deferred.resolve();
                 console.log( 'Done! The form cache is empty now.' );
-                return deferred.promise;
+                return;
             } );
     }
 
