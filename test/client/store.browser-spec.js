@@ -40,7 +40,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the setting object has no "name" property', function( done ) {
-                store.updateSetting( {
+                store.updateProperty( {
                         something: 'something'
                     } )
                     .catch( function( e ) {
@@ -54,9 +54,9 @@ define( [ 'store' ], function( store ) {
                     name: 'something',
                     value: new Date().getTime()
                 };
-                store.updateSetting( toSet )
+                store.updateProperty( toSet )
                     .then( function() {
-                        return store.getSetting( 'something' );
+                        return store.getProperty( 'something' );
                     } )
                     .then( function( setting ) {
                         expect( setting ).to.deep.equal( toSet );
@@ -75,9 +75,9 @@ define( [ 'store' ], function( store ) {
                         }
                     }
                 };
-                store.updateSetting( toSet )
+                store.updateProperty( toSet )
                     .then( function() {
-                        return store.getSetting( 'something' );
+                        return store.getProperty( 'something' );
                     } )
                     .then( function( setting ) {
                         expect( setting ).to.deep.equal( toSet );
@@ -93,13 +93,13 @@ define( [ 'store' ], function( store ) {
                     },
                     newValue = 'something else';
 
-                store.updateSetting( toSet )
+                store.updateProperty( toSet )
                     .then( function( setting ) {
                         setting.value = newValue;
-                        return store.updateSetting( setting );
+                        return store.updateProperty( setting );
                     } )
                     .then( function() {
-                        return store.getSetting( 'something' );
+                        return store.getProperty( 'something' );
                     } )
                     .then( function( setting ) {
                         expect( setting.value ).to.equal( newValue );
@@ -175,6 +175,8 @@ define( [ 'store' ], function( store ) {
 
         } );
 
+
+        // TODO: I think these tests are flawed. See records test for alternative.
         describe( 'storing surveys', function() {
             var survey,
                 setSurveyTest = function() {
@@ -230,6 +232,67 @@ define( [ 'store' ], function( store ) {
                 setSurveyTest()
                     .then( setSurveyTest )
                     .catch( function( e ) {
+                        expect( true ).to.equal( true );
+                        done();
+                    } );
+            } );
+
+        } );
+
+
+        describe( 'storing records', function() {
+            var original = '{"instanceId": "myID", "name": "thename", "xml": "<model></model>"}';
+
+            beforeEach( function( done ) {
+                store.flush()
+                    .then( store.init )
+                    .then( done );
+            } );
+
+            it( 'fails if the record has no "instanceId" property', function() {
+                var rec = JSON.parse( original );
+                delete rec.instanceId;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( function() {
+                    store.setRecord( rec );
+                } ).to.throw( /not complete/ );
+            } );
+
+            it( 'fails if the record has no "name" property', function() {
+                var rec = JSON.parse( original );
+                delete rec.name;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( function() {
+                    store.setRecord( rec );
+                } ).to.throw( /not complete/ );
+            } );
+
+            it( 'fails if the record has no "xml" property', function() {
+                var rec = JSON.parse( original );
+                delete rec.xml;
+                // note: the throw assert works here because the error is thrown before in sync part of function
+                expect( function() {
+                    store.setRecord( rec );
+                } ).to.throw( /not complete/ );
+            } );
+
+            it( 'succeeds if the record has the required properties and doesn\'t exist already', function( done ) {
+                var rec = JSON.parse( original );
+                store.setRecord( rec )
+                    .then( function( result ) {
+                        expect( result ).to.deep.equal( rec );
+                        done();
+                    } );
+            } );
+
+            it( 'fails if a record with that instanceId already exists in the db', function( done ) {
+                var rec = JSON.parse( original );
+                store.setRecord( rec )
+                    .then( function() {
+                        return store.setRecord( rec );
+                    } )
+                    .catch( function( e ) {
+                        // TODO FF throws a ConstraintError but for some reason this is not caught here
                         expect( true ).to.equal( true );
                         done();
                     } );

@@ -277,9 +277,76 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                         deferred.resolve( survey );
                         return deferred.promise;
                     } );
-
-                //TODO: better to resolve with survey object for consistency?
             } );
+    }
+
+    /** 
+     * Obtains a single record (XML + files)
+     *
+     * @param  {[type]} record [description]
+     * @return {Promise}        [description]
+     */
+    function getRecord( instanceId ) {
+        return server.records.get( instanceId )
+            .then( _firstItemOnly );
+
+        // TODO: add files
+    }
+
+    /**
+     * Sets a new single record (XML + files)
+     *
+     * @param {[type]} record [description]
+     * @return {Promise}        [description]
+     */
+    function setRecord( record ) {
+        console.debug( 'attempting to store new record' );
+        //var deferred = Q.defer();
+        // deferred.reject( new Error( 'record setting error' ) );
+        //return deferred.promise;
+        if ( !record.instanceId || !record.name || !record.xml ) {
+            throw new Error( 'Record not complete' );
+        }
+        return server.records.add( record )
+            .then( _firstItemOnly );
+    }
+
+    /**
+     * Updates (or creates) a single record (XML + files)
+     *
+     * @param {[type]} record [description]
+     * @return {Promise}        [description]
+     */
+    function updateRecord( record ) {
+        console.debug( 'attempting to update a stored record' );
+        if ( !record.instanceId || !record.name || !record.xml ) {
+            throw new Error( 'Record not complete' );
+        }
+        return server.surveys.update( record );
+    }
+
+    /** 
+     * Removes a single record (XML + files)
+     *
+     * @param {[type]} record [description]
+     * @return {Promise}        [description]
+     */
+    function removeRecord( instanceId ) {
+        var resources,
+            tasks = [];
+
+        return server.records.remove( instanceId );
+        /*return getRecord( id )
+        .then( function( survey ) {
+            console.debug( 'record found', survey );
+            files = record.files || [];
+            files.forEach( function( file ) {
+                console.debug( 'adding removal of ', file, 'to remove task queue' );
+                tasks.push( removeFile( instanceId, file ) );
+            } );
+            tasks.push( server.records.remove( instanceId ) );
+            return Q.all( tasks );
+        } );*/
     }
 
     /**
@@ -407,6 +474,10 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         setSurvey: setSurvey,
         updateSurvey: updateSurvey,
         removeSurvey: removeSurvey,
+        getRecord: getRecord,
+        setRecord: setRecord,
+        updateRecord: updateRecord,
+        removeRecord: removeRecord,
         getResource: getResource,
         updateResource: updateResource,
         dump: dump
