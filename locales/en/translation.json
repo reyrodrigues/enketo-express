@@ -88,7 +88,7 @@
       "reminder": "Remember to set these same print settings in the browser's print menu afterwards!"
     },
     "save": {
-      "error": "An error occurred. The record was not saved. Error: __error__",
+      "error": "An error occurred when trying to save data. Error: __error__",
       "hint": "This name allows you to easily find your draft record to finish it later. The record name will not be submitted to the server.",
       "msg": "There are unsaved changes, would you like to continue without saving those?",
       "name": "Record Name",

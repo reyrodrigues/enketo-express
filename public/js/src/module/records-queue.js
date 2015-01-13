@@ -24,11 +24,17 @@ define( [ 'store', 'q' ], function( store, Q ) {
     // DEBUG
     window.store = store;
 
-    function get( record ) {
-        return store.getRecord( record );
+    function init() {
+        // _setUploadIntervals();
+        // _setEventHandlers();
+    }
+
+    function get( instanceId ) {
+        return store.getRecord( instanceId );
     }
 
     function set( record ) {
+        console.log( 'setting record' );
         return store.setRecord( record );
     }
 
@@ -45,6 +51,14 @@ define( [ 'store', 'q' ], function( store, Q ) {
             .then( function( counter ) {
                 return isNaN( counter ) ? 1 : counter + 1;
             } );
+    }
+
+    function _setUploadIntervals() {
+
+    }
+
+    function _updateRecordList() {
+
     }
 
     /**
