@@ -300,15 +300,48 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise}        [description]
      */
     function setRecord( record ) {
+        var fileKeys;
+
         console.debug( 'attempting to store new record' );
+
         //var deferred = Q.defer();
         // deferred.reject( new Error( 'record setting error' ) );
         //return deferred.promise;
+
         if ( !record.instanceId || !record.name || !record.xml ) {
             throw new Error( 'Record not complete' );
         }
-        return server.records.add( record )
-            .then( _firstItemOnly );
+
+        record.files = record.files || [];
+
+        // build array of file keys
+        fileKeys = record.files.map( function( file ) {
+            return file.key;
+        } );
+
+        return server.records.add( {
+                instanceId: record.instanceId,
+                name: record.name,
+                xml: record.xml,
+                files: fileKeys
+            } )
+            .then( function() {
+                var tasks = [];
+
+                record.files.forEach( function( file ) {
+                    file.key = record.instanceId + ':' + file.key;
+                    tasks.push( updateRecordFile( file ) );
+                } );
+
+                return Q.all( tasks )
+                    .then( function() {
+                        //var deferred = Q.defer();
+                        // resolving with original record (not the array returned by server.records.add)
+                        //deferred.resolve( record );
+                        //return deferred.promise;
+                        return record;
+                    } );
+            } );
     }
 
     /**
@@ -318,11 +351,42 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise}        [description]
      */
     function updateRecord( record ) {
+        var fileKeys;
+
         console.debug( 'attempting to update a stored record' );
+
         if ( !record.instanceId || !record.name || !record.xml ) {
             throw new Error( 'Record not complete' );
         }
-        return server.surveys.update( record );
+
+        record.files = record.files || [];
+
+        // build array of file keys
+        fileKeys = record.files.map( function( file ) {
+            return file.key;
+        } );
+        return server.records.update( {
+                instanceId: record.instanceId,
+                name: record.name,
+                xml: record.xml,
+                files: fileKeys
+            } )
+            .then( function() {
+                var tasks = [];
+
+                record.files.forEach( function( file ) {
+                    file.key = record.instanceId + ':' + file.key;
+                    tasks.push( updateRecordFile( file ) );
+                } );
+
+                return Q.all( tasks )
+                    .then( function() {
+                        var deferred = Q.defer();
+                        // resolving with original survey (not the array returned by server.records.update)
+                        deferred.resolve( record );
+                        return deferred.promise;
+                    } );
+            } );
     }
 
     /** 
@@ -332,21 +396,20 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise}        [description]
      */
     function removeRecord( instanceId ) {
-        var resources,
+        var files,
             tasks = [];
 
-        return server.records.remove( instanceId );
-        /*return getRecord( id )
-        .then( function( survey ) {
-            console.debug( 'record found', survey );
-            files = record.files || [];
-            files.forEach( function( file ) {
-                console.debug( 'adding removal of ', file, 'to remove task queue' );
-                tasks.push( removeFile( instanceId, file ) );
+        return getRecord( instanceId )
+            .then( function( record ) {
+                console.debug( 'record, found', record );
+                files = record.files || [];
+                files.forEach( function( fileKey ) {
+                    console.debug( 'adding removal of ', fileKey, 'to remove task queue' );
+                    tasks.push( removeRecordFile( instanceId, fileKey ) );
+                } );
+                tasks.push( server.records.remove( instanceId ) );
+                return Q.all( tasks );
             } );
-            tasks.push( server.records.remove( instanceId ) );
-            return Q.all( tasks );
-        } );*/
     }
 
     /**
@@ -392,6 +455,60 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     function removeResource( id, url ) {
         return server.resources.remove( id + ':' + url );
     }
+
+    /**
+     * Updates an file belonging to a record in storage or creates it if it does not yet exist. This function is exported
+     * for testing purposes, but not actually used as a public function in Enketo.
+     *
+     * @param  {{item:Blob, key:string}} file The key consist of a concatenation of the id, _, and the URL
+     * @return {[type]}          [description]
+     */
+    function updateRecordFile( file ) {
+        // The format of file is db.js way of directing it to store the blob instance as the value
+        // The files table does not have a keyPath for this reason
+        // (IE doesn't like complex objects with Blob properties)
+
+        console.debug( 'adding record file to db', file );
+
+        // TODO: test what happens if file.item or file.key is missing (also for updateResource)
+
+        if ( blobEncoding && file && file.item instanceof Blob ) {
+            return utils.blobToDataUri( file.item )
+                .then( function( convertedBlob ) {
+                    file.item = convertedBlob;
+                    return server.files.update( file );
+                } );
+        } else {
+            return server.files.update( file );
+        }
+    }
+
+    function getRecordFile( instanceId, fileKey ) {
+        var deferred = Q.defer();
+
+        server.files.get( instanceId + ':' + fileKey )
+            .then( function( item ) {
+                if ( item instanceof Blob ) {
+                    deferred.resolve( item );
+                } else {
+                    utils.dataUriToBlob( item ).then( deferred.resolve );
+                }
+            } )
+            .catch( deferred.reject );
+
+        return deferred.promise;
+    }
+
+    /**
+     * Removes all record files for an instanceId
+     *
+     * @param  {string} instanceId [description]
+     * @return {Promise}            [description]
+     */
+    function removeRecordFile( instanceId, fileKey ) {
+        return server.files.remove( instanceId + ':' + fileKey );
+    }
+
 
     // completely remove the database
     // there is no db.js method for this yet
@@ -480,6 +597,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         removeRecord: removeRecord,
         getResource: getResource,
         updateResource: updateResource,
+        getRecordFile: getRecordFile,
+        updateRecordFile: updateRecordFile,
         dump: dump
     };
 
