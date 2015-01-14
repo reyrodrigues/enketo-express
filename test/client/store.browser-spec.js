@@ -17,18 +17,28 @@ define( [ 'store' ], function( store ) {
 
     describe( 'Client Storage', function() {
 
+        var resourceA = {
+                url: '/path/to/resource1',
+                item: new Blob( [ '<html>something1</html' ], {
+                    type: "text/xml"
+                } )
+            },
+            resourceB = {
+                url: '/path/to/resource2',
+                item: new Blob( [ '<html>something2</html' ], {
+                    type: "text/xml"
+                } )
+            };
+
         it( 'library is loaded', function() {
             expect( typeof store ).to.equal( 'object' );
         } );
 
         it( 'IndexedDb is supported and writeable', function( done ) {
 
+            // In Safari the DB appears to be blocked. Occassionally this test passes.
             store.init()
-                .then( function() {
-                    expect( 'this to be reached' ).to.be.a( 'string' );
-                    done();
-                } )
-                .catch( done );
+                .then( done, done );
         } );
 
         describe( 'storing settings and properties', function() {
@@ -116,8 +126,8 @@ define( [ 'store' ], function( store ) {
                     .then( done, done );
             } );
 
-            it( 'fails if the resource has no "key" property', function( done ) {
-                store.updateResource( {
+            it( 'fails if the resource has no "url" property', function( done ) {
+                store.updateResource( 'abcd', {
                         something: 'something'
                     } )
                     .catch( function( e ) {
@@ -127,8 +137,8 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the setting object has no "item" property', function( done ) {
-                store.updateResource( {
-                        key: 'something'
+                store.updateResource( 'abcd', {
+                        url: 'something'
                     } )
                     .catch( function( e ) {
                         expect( e.name ).to.equal( 'DataError' );
@@ -137,7 +147,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the "item" is not a Blob', function( done ) {
-                store.updateResource( {
+                store.updateResource( 'abcd', {
                         key: 'something'
                     } )
                     .catch( function( e ) {
@@ -148,17 +158,12 @@ define( [ 'store' ], function( store ) {
 
             it( 'succeeds if key and item are present and item is a Blob', function( done ) {
                 var id = 'TESt',
-                    url = '/some/path/for/example',
+                    url = resourceA.url,
                     type = 'text/xml',
-                    res1 = {
-                        key: id + ':' + url,
-                        item: new Blob( [ '<html>something</html' ], {
-                            type: "text/xml"
-                        } )
-                    },
+                    res1 = resourceA,
                     size = res1.item.size;
 
-                store.updateResource( res1 )
+                store.updateResource( id, res1 )
                     .then( function( stored ) {
                         return store.getResource( id, url );
                     } )
@@ -166,9 +171,8 @@ define( [ 'store' ], function( store ) {
                         expect( result.type ).to.equal( type );
                         expect( result.size ).to.equal( size );
                         expect( result ).to.be.an.instanceof( Blob );
-                        done();
                     } )
-                    .catch( done );
+                    .then( done, done );
             } );
 
         } );
@@ -222,9 +226,15 @@ define( [ 'store' ], function( store ) {
                 var survey = JSON.parse( original );
                 store.setSurvey( survey )
                     .then( function( result ) {
+                        // check response of setSurvey
                         expect( result ).to.deep.equal( survey );
-                        done();
-                    } );
+                        return store.getSurvey( survey.enketoId );
+                    } )
+                    .then( function( result ) {
+                        // check response of getSurvey
+                        expect( result ).to.deep.equal( survey );
+                    } )
+                    .then( done, done );
             } );
 
             it( 'fails if a survey with that id already exists in the db', function( done ) {
@@ -239,6 +249,95 @@ define( [ 'store' ], function( store ) {
                     } );
             } );
 
+        } );
+
+        describe( 'getting surveys', function() {
+
+            it( 'returns undefined if a survey does not exist', function( done ) {
+                store.getSurvey( 'nonexisting' )
+                    .then( function( result ) {
+                        expect( result ).to.equal( undefined );
+                    } )
+                    .then( done, done );
+            } );
+
+        } );
+
+        describe( 'updating surveys', function() {
+            var original = '{"enketoId": "TESt", "form": "<form class=\\"or\\"></form>", "model": "<model></model>", "hash": "12345"}';
+
+            beforeEach( function( done ) {
+                store.flushTable( 'surveys' )
+                    .then( function() {
+                        store.flushTable( 'resources' );
+                    } )
+                    .then( done, done );
+            } );
+
+            it( 'succeeds if the survey has the required properties and contains no file resources', function( done ) {
+                var survey = JSON.parse( original );
+
+                store.setSurvey( survey )
+                    .then( function() {
+                        survey.model = '<model><new>value</new></model>';
+                        survey.hash = '6789';
+                        return store.updateSurvey( survey );
+                    } )
+                    .then( function( result ) {
+                        // check response of updateSurvey
+                        expect( result ).to.deep.equal( survey );
+                        return store.getSurvey( survey.enketoId );
+                    } )
+                    .then( function( result ) {
+                        // check response of getSurvey
+                        expect( result.model ).to.equal( survey.model );
+                        expect( result.hash ).to.equal( survey.hash );
+                    } )
+                    .then( done, done );
+            } );
+
+            it( 'succeeds if the survey has the required properties and contains file resources', function( done ) {
+                var survey = JSON.parse( original );
+
+                store.setSurvey( survey )
+                    .then( function() {
+                        survey.resources = [ resourceA.url, resourceB.url ];
+                        survey.files = [ resourceA, resourceB ];
+                        return store.updateSurvey( survey );
+                    } )
+                    .then( function( result ) {
+                        // check response of updateSurvey
+                        expect( result ).to.deep.equal( survey );
+                        return store.getResource( result.enketoId, result.files[ 0 ].url );
+                    } )
+                    .then( function( result ) {
+                        // check response of getResource
+                        expect( result.type ).to.equal( survey.files[ 0 ].item.type );
+                        expect( result.size ).to.equal( survey.files[ 0 ].item.size );
+                        expect( result ).to.be.an.instanceof( Blob );
+                    } )
+                    .then( done, done );
+            } );
+        } );
+
+        describe( 'removing surveys', function() {
+            var original = '{"enketoId": "TESty", "form": "<form class=\\"or\\"></form>", "model": "<model></model>", "hash": "12345"}';
+
+            it( 'succeeds if the survey contains no files', function( done ) {
+                var survey = JSON.parse( original );
+
+                store.setSurvey( survey )
+                    .then( function() {
+                        return store.removeSurvey( survey.enketoId );
+                    } )
+                    .then( function() {
+                        return store.getSurvey( survey.enketoId );
+                    } )
+                    .then( function( result ) {
+                        expect( result ).to.equal( undefined );
+                    } )
+                    .then( done, done );
+            } );
         } );
 
         describe( 'storing (record) files', function() {
@@ -280,14 +379,9 @@ define( [ 'store' ], function( store ) {
 
             it( 'succeeds if key and item are present and item is a Blob', function( done ) {
                 var id = 'TESt',
-                    url = '/some/path/for/example',
+                    url = resourceA.url,
                     type = 'text/xml',
-                    res1 = {
-                        key: id + ':' + url,
-                        item: new Blob( [ '<html>something</html' ], {
-                            type: "text/xml"
-                        } )
-                    },
+                    res1 = resourceA,
                     size = res1.item.size;
 
                 store.updateRecordFile( res1 )

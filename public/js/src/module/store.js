@@ -266,8 +266,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 survey.files = survey.files || [];
 
                 survey.files.forEach( function( file ) {
-                    file.key = survey.enketoId + ':' + file.key;
-                    tasks.push( updateResource( file ) );
+                    tasks.push( updateResource( survey.enketoId, file ) );
                 } );
 
                 return Q.all( tasks )
@@ -323,7 +322,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 instanceId: record.instanceId,
                 name: record.name,
                 xml: record.xml,
-                files: fileKeys
+                files: fileKeys,
+                updated: new Date().getTime(),
+                draft: record.draft
             } )
             .then( function() {
                 var tasks = [];
@@ -369,7 +370,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 instanceId: record.instanceId,
                 name: record.name,
                 xml: record.xml,
-                files: fileKeys
+                files: fileKeys,
+                updated: new Date().getTime(),
+                draft: record.draft
             } )
             .then( function() {
                 var tasks = [];
@@ -416,14 +419,15 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * Updates an external resource in storage or creates it if it does not yet exist. This function is exported
      * for testing purposes, but not actually used as a public function in Enketo.
      *
-     * @param  {{item:Blob, key:string}} resource The key consist of a concatenation of the id, _, and the URL
+     * @param  {{item:Blob, url:string}} resource
      * @return {[type]}          [description]
      */
-    function updateResource( resource ) {
+    function updateResource( id, resource ) {
         // The format of resource is db.js way of directing it to store the blob instance as the value
         // The resources table does not have a keyPath for this reason
         // (IE doesn't like complex objects with Blob properties)
         console.log( 'updating resource', resource, 'to be encoded', blobEncoding );
+        resource.key = id + ':' + resource.url;
 
         if ( blobEncoding && resource && resource.item instanceof Blob ) {
             return utils.blobToDataUri( resource.item )
@@ -438,7 +442,6 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
 
     function getResource( id, url ) {
         var deferred = Q.defer();
-
         server.resources.get( id + ':' + url )
             .then( function( item ) {
                 if ( item instanceof Blob ) {
@@ -500,7 +503,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     /**
-     * Removes all record files for an instanceId
+     * Removes a record file
      *
      * @param  {string} instanceId [description]
      * @return {Promise}            [description]
@@ -516,8 +519,12 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         var request,
             deferred = Q.defer();
 
-        if ( server ) {
+        try {
             server.close( databaseName );
+        } catch ( e ) {
+            console.log( 'Database has probably been removed already. Doing nothing.', e );
+            deferred.resolve();
+            return deferred.promise;
         }
 
         request = indexedDB.deleteDatabase( databaseName );

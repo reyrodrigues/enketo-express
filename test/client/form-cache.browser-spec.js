@@ -28,9 +28,7 @@ require( [ 'form-cache', 'connection' ], function( formCache, connection ) {
                 enketoId: 'TESt',
             };
             formCache.flush()
-                .then( function() {
-                    done();
-                } );
+                .then( done, done );
         } );
 
         afterEach( function() {

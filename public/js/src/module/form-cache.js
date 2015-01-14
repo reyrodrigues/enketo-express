@@ -118,7 +118,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
                     var url = survey.resources[ index ];
 
                     survey.files.push( {
-                        key: url,
+                        url: url,
                         item: resource
                     } );
                 } );
