@@ -1,4 +1,4 @@
-/* global define, describe, require, it, before, after, beforeEach, afterEach, expect, Blob */
+/* global define, describe, xdescribe, require, it, xit, before, after, beforeEach, afterEach, expect, Blob */
 "use strict";
 
 /**
@@ -16,19 +16,28 @@
 define( [ 'store' ], function( store ) {
 
     describe( 'Client Storage', function() {
+        var resourceA, resourceB, fileA;
 
-        var resourceA = {
+        beforeEach( function() {
+            resourceA = {
                 url: '/path/to/resource1',
                 item: new Blob( [ '<html>something1</html' ], {
                     type: "text/xml"
                 } )
-            },
+            };
             resourceB = {
                 url: '/path/to/resource2',
                 item: new Blob( [ '<html>something2</html' ], {
                     type: "text/xml"
                 } )
             };
+            fileA = {
+                name: 'something.xml',
+                item: new Blob( [ '<html>something1</html' ], {
+                    type: "text/xml"
+                } )
+            };
+        } );
 
         it( 'library is loaded', function() {
             expect( typeof store ).to.equal( 'object' );
@@ -158,19 +167,17 @@ define( [ 'store' ], function( store ) {
 
             it( 'succeeds if key and item are present and item is a Blob', function( done ) {
                 var id = 'TESt',
-                    url = resourceA.url,
-                    type = 'text/xml',
-                    res1 = resourceA,
-                    size = res1.item.size;
+                    url = resourceA.url;
 
-                store.updateResource( id, res1 )
+                store.updateResource( id, resourceA )
                     .then( function( stored ) {
                         return store.getResource( id, url );
                     } )
                     .then( function( result ) {
-                        expect( result.type ).to.equal( type );
-                        expect( result.size ).to.equal( size );
-                        expect( result ).to.be.an.instanceof( Blob );
+                        expect( result.item.type ).to.equal( resourceA.item.type );
+                        expect( result.item.size ).to.equal( resourceA.item.size );
+                        expect( result.item ).to.be.an.instanceof( Blob );
+                        expect( result.url ).to.equal( url );
                     } )
                     .then( done, done );
             } );
@@ -243,7 +250,7 @@ define( [ 'store' ], function( store ) {
                     .then( function() {
                         return store.setSurvey( survey );
                     } )
-                    .catch( function( e ) {
+                    .catch( function( item, e ) {
                         expect( true ).to.equal( true );
                         done();
                     } );
@@ -297,7 +304,8 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'succeeds if the survey has the required properties and contains file resources', function( done ) {
-                var survey = JSON.parse( original );
+                var survey = JSON.parse( original ),
+                    urlA = resourceA.url;
 
                 store.setSurvey( survey )
                     .then( function() {
@@ -308,13 +316,13 @@ define( [ 'store' ], function( store ) {
                     .then( function( result ) {
                         // check response of updateSurvey
                         expect( result ).to.deep.equal( survey );
-                        return store.getResource( result.enketoId, result.files[ 0 ].url );
+                        return store.getResource( result.enketoId, urlA );
                     } )
                     .then( function( result ) {
                         // check response of getResource
-                        expect( result.type ).to.equal( survey.files[ 0 ].item.type );
-                        expect( result.size ).to.equal( survey.files[ 0 ].item.size );
-                        expect( result ).to.be.an.instanceof( Blob );
+                        expect( result.item.type ).to.equal( survey.files[ 0 ].item.type );
+                        expect( result.item.size ).to.equal( survey.files[ 0 ].item.size );
+                        expect( result.item ).to.be.an.instanceof( Blob );
                     } )
                     .then( done, done );
             } );
@@ -322,6 +330,14 @@ define( [ 'store' ], function( store ) {
 
         describe( 'removing surveys', function() {
             var original = '{"enketoId": "TESty", "form": "<form class=\\"or\\"></form>", "model": "<model></model>", "hash": "12345"}';
+
+            beforeEach( function( done ) {
+                store.flushTable( 'surveys' )
+                    .then( function() {
+                        store.flushTable( 'resources' );
+                    } )
+                    .then( done, done );
+            } );
 
             it( 'succeeds if the survey contains no files', function( done ) {
                 var survey = JSON.parse( original );
@@ -338,6 +354,36 @@ define( [ 'store' ], function( store ) {
                     } )
                     .then( done, done );
             } );
+
+            it( 'succeeds if the survey contains files', function( done ) {
+                var survey = JSON.parse( original ),
+                    url = resourceA.url;
+
+                survey.enketoId = survey.enketoId + Math.random();
+
+                store.setSurvey( survey )
+                    .then( function( result ) {
+                        console.debug( "RESULT of SET", JSON.stringify( result ) );
+                        survey.resources = [ resourceA.url, resourceB.url ];
+                        survey.files = [ resourceA, resourceB ];
+                        return store.updateSurvey( survey );
+                    } )
+                    .then( function( result ) {
+                        console.debug( "RESULT of UPDATE", JSON.stringify( result ) );
+                        return store.removeSurvey( survey.enketoId );
+                    } )
+                    .then( function( result ) {
+                        console.debug( "RESULT of REMOVE", JSON.stringify( result ) );
+                        return store.getResource( survey.enketoId, url );
+                    } )
+                    .then( function( result ) {
+                        console.debug( "RESULT of GETRESOURCE", JSON.stringify( result ) );
+                        expect( result ).to.equal( undefined );
+                        done();
+                    } )
+                    .catch( done );
+            } );
+
         } );
 
         describe( 'storing (record) files', function() {
@@ -347,9 +393,9 @@ define( [ 'store' ], function( store ) {
                     .then( done, done );
             } );
 
-            it( 'fails if the resource has no "key" property', function( done ) {
-                store.updateRecordFile( {
-                        something: 'something'
+            it( 'fails if the resource has no "name" property', function( done ) {
+                store.updateRecordFile( 'abcd', {
+                        item: fileA
                     } )
                     .catch( function( e ) {
                         expect( e.name ).to.equal( 'DataError' );
@@ -358,8 +404,8 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the setting object has no "item" property', function( done ) {
-                store.updateRecordFile( {
-                        key: 'something'
+                store.updateRecordFile( 'abcd', {
+                        name: 'something.jpg'
                     } )
                     .catch( function( e ) {
                         expect( e.name ).to.equal( 'DataError' );
@@ -368,8 +414,9 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the "item" is not a Blob', function( done ) {
-                store.updateRecordFile( {
-                        key: 'something'
+                store.updateRecordFile( 'abcd', {
+                        name: 'something',
+                        item: 'a string'
                     } )
                     .catch( function( e ) {
                         expect( e.name ).to.equal( 'DataError' );
@@ -379,19 +426,17 @@ define( [ 'store' ], function( store ) {
 
             it( 'succeeds if key and item are present and item is a Blob', function( done ) {
                 var id = 'TESt',
-                    url = resourceA.url,
-                    type = 'text/xml',
-                    res1 = resourceA,
-                    size = res1.item.size;
+                    name = fileA.name;
 
-                store.updateRecordFile( res1 )
+                store.updateRecordFile( id, fileA )
                     .then( function( stored ) {
-                        return store.getRecordFile( id, url );
+                        return store.getRecordFile( id, name );
                     } )
                     .then( function( result ) {
-                        expect( result.type ).to.equal( type );
-                        expect( result.size ).to.equal( size );
-                        expect( result ).to.be.an.instanceof( Blob );
+                        expect( result.item.type ).to.equal( fileA.item.type );
+                        expect( result.item.size ).to.equal( fileA.item.size );
+                        expect( result.item ).to.be.an.instanceof( Blob );
+                        expect( result.name ).to.equal( name );
                         done();
                     } )
                     .catch( done );
@@ -439,9 +484,18 @@ define( [ 'store' ], function( store ) {
                 store.setRecord( rec )
                     .then( function( result ) {
                         expect( result ).to.deep.equal( rec );
+                        return store.getRecord( rec.instanceId );
+                    } )
+                    .then( function( result ) {
+                        expect( result.instanceId ).to.equal( rec.instanceId );
+                        expect( result.xml ).to.equal( rec.xml );
+                        expect( result.updated ).to.be.at.least( new Date().getTime() - 100 );
                         done();
-                    } );
+                    } )
+                    .catch( done );
             } );
+
+            // TODO: add same test to save and obtain a record with files
 
             it( 'fails if a record with that instanceId already exists in the db', function( done ) {
                 var rec = JSON.parse( original );
@@ -524,12 +578,17 @@ define( [ 'store' ], function( store ) {
                         expect( result ).to.deep.equal( rec );
                         expect( result.xml ).to.equal( '<model><change>a</change></model>' );
                     } )
+                    // TODO: now get the record
                     .then( done, done );
             } );
 
+            // TODO: same test but with files
 
         } );
 
 
+        describe( 'removing records', function() {
+
+        } );
     } );
 } );

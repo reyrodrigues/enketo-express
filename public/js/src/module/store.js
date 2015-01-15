@@ -287,9 +287,21 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      */
     function getRecord( instanceId ) {
         return server.records.get( instanceId )
-            .then( _firstItemOnly );
+            .then( _firstItemOnly )
+            .then( function( record ) {
+                var fileKey,
+                    tasks = [];
 
-        // TODO: add files
+                record.files.forEach( function( fileKey ) {
+                    tasks.push( getRecordFile( record.instanceId, fileKey ) );
+                } );
+
+                return Q.all( tasks )
+                    .then( function( files ) {
+                        record.files = files;
+                        return record;
+                    } );
+            } );
     }
 
     /**
@@ -330,8 +342,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 var tasks = [];
 
                 record.files.forEach( function( file ) {
-                    file.key = record.instanceId + ':' + file.key;
-                    tasks.push( updateRecordFile( file ) );
+                    //file.key = record.instanceId + ':' + file.key;
+                    tasks.push( updateRecordFile( record.instanceId, file ) );
                 } );
 
                 return Q.all( tasks )
@@ -378,8 +390,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 var tasks = [];
 
                 record.files.forEach( function( file ) {
-                    file.key = record.instanceId + ':' + file.key;
-                    tasks.push( updateRecordFile( file ) );
+                    tasks.push( updateRecordFile( record.instanceId, file ) );
                 } );
 
                 return Q.all( tasks )
@@ -423,36 +434,40 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {[type]}          [description]
      */
     function updateResource( id, resource ) {
-        // The format of resource is db.js way of directing it to store the blob instance as the value
-        // The resources table does not have a keyPath for this reason
-        // (IE doesn't like complex objects with Blob properties)
-        console.log( 'updating resource', resource, 'to be encoded', blobEncoding );
-        resource.key = id + ':' + resource.url;
+        var deferred, error;
 
-        if ( blobEncoding && resource && resource.item instanceof Blob ) {
-            return utils.blobToDataUri( resource.item )
-                .then( function( convertedBlob ) {
-                    resource.item = convertedBlob;
-                    return server.resources.update( resource );
-                } );
+        console.log( 'updating resource', id, JSON.stringify( resource ), 'to be encoded', blobEncoding );
+
+        if ( id && resource && resource.item instanceof Blob && resource.url ) {
+            resource.key = id + ':' + resource.url;
+            delete resource.url;
+            if ( blobEncoding ) {
+                /*
+                 * IE doesn't like complex objects with Blob properties so we store the blob as the value.
+                 * The files table does not have a keyPath for this reason.
+                 * The format of file (item: Blob, key: string) is db.js way of directing
+                 * it to store the blob instance as the value.
+                 */
+                return utils.blobToDataUri( resource.item )
+                    .then( function( convertedBlob ) {
+                        resource.item = convertedBlob;
+                        return server.resources.update( resource );
+                    } );
+            } else {
+                return server.resources.update( resource );
+            }
         } else {
-            return server.resources.update( resource );
+            deferred = Q.defer();
+            error = new Error( 'DataError. File not complete or enketoId not provided.' );
+            error.name = 'DataError';
+            deferred.reject( error );
+            return deferred.promise;
         }
+
     }
 
     function getResource( id, url ) {
-        var deferred = Q.defer();
-        server.resources.get( id + ':' + url )
-            .then( function( item ) {
-                if ( item instanceof Blob ) {
-                    deferred.resolve( item );
-                } else {
-                    utils.dataUriToBlob( item ).then( deferred.resolve );
-                }
-            } )
-            .catch( deferred.reject );
-
-        return deferred.promise;
+        return _getFile( 'resources', id, url );
     }
 
     function removeResource( id, url ) {
@@ -463,41 +478,74 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * Updates an file belonging to a record in storage or creates it if it does not yet exist. This function is exported
      * for testing purposes, but not actually used as a public function in Enketo.
      *
-     * @param  {{item:Blob, key:string}} file The key consist of a concatenation of the id, _, and the URL
+     * @param  {{item:Blob, name:string}} file The key consist of a concatenation of the id, _, and the URL
      * @return {[type]}          [description]
      */
-    function updateRecordFile( file ) {
-        // The format of file is db.js way of directing it to store the blob instance as the value
-        // The files table does not have a keyPath for this reason
-        // (IE doesn't like complex objects with Blob properties)
+    function updateRecordFile( instanceId, file ) {
+        var deferred, error;
 
-        console.debug( 'adding record file to db', file );
+        console.debug( 'adding record file to db', instanceId, file );
 
-        // TODO: test what happens if file.item or file.key is missing (also for updateResource)
-
-        if ( blobEncoding && file && file.item instanceof Blob ) {
-            return utils.blobToDataUri( file.item )
-                .then( function( convertedBlob ) {
-                    file.item = convertedBlob;
-                    return server.files.update( file );
-                } );
+        if ( instanceId && file && file.item instanceof Blob && file.name ) {
+            file.key = instanceId + ':' + file.name;
+            delete file.name;
+            /*
+             * IE doesn't like complex objects with Blob properties so we store the blob as the value.
+             * The files table does not have a keyPath for this reason.
+             * The format of file (item: Blob, key: string) is db.js way of directing
+             * it to store the blob instance as the value.
+             */
+            if ( blobEncoding ) {
+                return utils.blobToDataUri( file.item )
+                    .then( function( convertedBlob ) {
+                        file.item = convertedBlob;
+                        return server.files.update( file );
+                    } );
+            } else {
+                return server.files.update( file );
+            }
         } else {
-            return server.files.update( file );
+            deferred = Q.defer();
+            error = new Error( 'DataError. File not complete or instanceId not provided.' );
+            error.name = 'DataError';
+            deferred.reject( error );
+            return deferred.promise;
         }
+
     }
 
     function getRecordFile( instanceId, fileKey ) {
-        var deferred = Q.defer();
+        return _getFile( 'files', instanceId, fileKey );
+    }
 
-        server.files.get( instanceId + ':' + fileKey )
-            .then( function( item ) {
-                if ( item instanceof Blob ) {
-                    deferred.resolve( item );
-                } else {
-                    utils.dataUriToBlob( item ).then( deferred.resolve );
-                }
-            } )
-            .catch( deferred.reject );
+    function _getFile( table, id, key ) {
+        var prop,
+            file = {},
+            deferred = Q.defer();
+
+        if ( table === 'resources' || table === 'files' ) {
+            prop = ( table === 'resources' ) ? 'url' : 'name';
+            server[ table ].get( id + ':' + key )
+                .then( function( item ) {
+                    file[ prop ] = key;
+                    if ( item instanceof Blob ) {
+                        file.item = item;
+                        deferred.resolve( file );
+                    } else if ( typeof item === 'string' ) {
+                        utils.dataUriToBlob( item )
+                            .then( function( item ) {
+                                file.item = item;
+                                deferred.resolve( file );
+                            } );
+                    } else {
+                        // if item is falsy or unexpected
+                        deferred.resolve( undefined );
+                    }
+                } )
+                .catch( deferred.reject );
+        } else {
+            deferred.reject( new Error( 'Unknown table or issing id or key.' ) );
+        }
 
         return deferred.promise;
     }
@@ -511,7 +559,6 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     function removeRecordFile( instanceId, fileKey ) {
         return server.files.remove( instanceId + ':' + fileKey );
     }
-
 
     // completely remove the database
     // there is no db.js method for this yet

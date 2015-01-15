@@ -51,7 +51,6 @@
         "gulp": "3.8.x",
         "i18next-parser": "0.3.x",
         "karma": "0.12.x",
-        "karma-chai": "0.1.x",
         "karma-chrome-launcher": "0.1.x",
         "karma-firefox-launcher": "0.1.x",
         "karma-mocha": "0.1.x",
