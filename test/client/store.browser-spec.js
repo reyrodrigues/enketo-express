@@ -306,7 +306,6 @@ define( [ 'store' ], function( store ) {
 
                 store.survey.set( survey )
                     .then( function() {
-                        survey.resources = [ resourceA.url, resourceB.url ];
                         survey.files = [ resourceA, resourceB ];
                         return store.survey.update( survey );
                     } )
@@ -320,6 +319,38 @@ define( [ 'store' ], function( store ) {
                         expect( result.item.type ).to.equal( survey.files[ 0 ].item.type );
                         expect( result.item.size ).to.equal( survey.files[ 0 ].item.size );
                         expect( result.item ).to.be.an.instanceof( Blob );
+                    } )
+                    .then( done, done );
+            } );
+
+
+            it( 'removes any form resources that have become obsolete', function( done ) {
+                var survey = JSON.parse( original ),
+                    urlA = resourceA.url,
+                    urlB = resourceB.url;
+
+                store.survey.set( survey )
+                    .then( function() {
+                        // store 2 resources
+                        survey.files = [ resourceA, resourceB ];
+                        return store.survey.update( survey );
+                    } )
+                    .then( function( result ) {
+                        // update survey to contain only 1 resource
+                        survey.files = [ {
+                            url: urlA,
+                            item: resourceA.item
+                        } ];
+                        return store.survey.update( survey );
+                    } )
+                    .then( function( result ) {
+                        // check response of updateSurvey
+                        expect( result ).to.deep.equal( survey );
+                        return store.survey.resource.get( result.enketoId, urlB );
+                    } )
+                    .then( function( result ) {
+                        // check response of getResource
+                        expect( result ).to.equal( undefined );
                     } )
                     .then( done, done );
             } );
@@ -357,21 +388,16 @@ define( [ 'store' ], function( store ) {
 
                 store.survey.set( survey )
                     .then( function( result ) {
-                        console.debug( "RESULT of SET", JSON.stringify( result ) );
-                        survey.resources = [ resourceA.url, resourceB.url ];
                         survey.files = [ resourceA, resourceB ];
                         return store.survey.update( survey );
                     } )
                     .then( function( result ) {
-                        console.debug( "RESULT of UPDATE", JSON.stringify( result ) );
                         return store.survey.remove( survey.enketoId );
                     } )
                     .then( function( result ) {
-                        console.debug( "RESULT of REMOVE", JSON.stringify( result ) );
                         return store.survey.resource.get( survey.enketoId, url );
                     } )
                     .then( function( result ) {
-                        console.debug( "RESULT of GETRESOURCE", JSON.stringify( result ) );
                         expect( result ).to.equal( undefined );
                         done();
                     } )

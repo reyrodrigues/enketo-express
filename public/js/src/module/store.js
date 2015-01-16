@@ -192,28 +192,48 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}        [description]
          */
         update: function( survey ) {
+            var tasks = [],
+                obsoleteResources = [];
+
             console.debug( 'attempting to update stored survey' );
+
             if ( !survey.form || !survey.model || !survey.enketoId ) {
                 throw new Error( 'Survey not complete' );
             }
 
-            // TODO: create diff of files between existing and new record and remove
-            // the files that are obsolete
+            survey.files = survey.files || [];
+            survey.resources = survey.files.map( function( resource ) {
+                return resource.url;
+            } );
 
-            return server.surveys.update( {
-                    form: survey.form,
-                    model: survey.model,
-                    enketoId: survey.enketoId,
-                    hash: survey.hash,
-                    resources: survey.resources
+            return server.surveys.get( survey.enketoId )
+                .then( function( result ) {
+                    // determine resources to be removed
+                    if ( result.resources ) {
+
+                        obsoleteResources = result.resources.filter( function( existing ) {
+                            return survey.resources.indexOf( existing ) < 0;
+                        } );
+                    }
+                    // update the existing survey
+                    return server.surveys.update( {
+                        form: survey.form,
+                        model: survey.model,
+                        enketoId: survey.enketoId,
+                        hash: survey.hash,
+                        resources: survey.resources
+                    } );
                 } )
                 .then( function() {
-                    var tasks = [];
-                    survey.files = survey.files || [];
+                    // add new or update existing resources
                     survey.files.forEach( function( file ) {
                         tasks.push( surveyStore.resource.update( survey.enketoId, file ) );
                     } );
-
+                    // remove obsolete resources
+                    obsoleteResources.forEach( function( url ) {
+                        tasks.push( surveyStore.resource.remove( survey.enketoId, url ) );
+                    } );
+                    // execution
                     return Q.all( tasks )
                         .then( function() {
                             var deferred = Q.defer();
@@ -431,7 +451,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         },
         /**
          * removes all records and record files
-         * @return {[type]} [description]
+         * @return {Promise} [description]
          */
         removeAll: function() {
             return _flushTable( 'records' )
@@ -440,6 +460,13 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 } );
         },
         file: {
+            /**
+             * Obtains a file belonging to a record
+             *
+             * @param  {string} instanceId The instanceId that is part of the record (meta>instancID)
+             * @param  {string} fileKey     unique key that identifies the file in the record (meant to be fileName)
+             * @return {Promise}          [description]
+             */
             get: function( instanceId, fileKey ) {
                 return _getFile( 'files', instanceId, fileKey );
             },
@@ -447,8 +474,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
              * Updates an file belonging to a record in storage or creates it if it does not yet exist. This function is exported
              * for testing purposes, but not actually used as a public function in Enketo.
              *
-             * @param  {{item:Blob, name:string}} file The key consist of a concatenation of the id, _, and the URL
-             * @return {[type]}          [description]
+             * @param  {string}                     instanceId  instanceId that is part of the record (meta>instancID)
+             * @param  {{item:Blob, name:string}}   file        file object
+             * @return {Promise}
              */
             update: function( instanceId, file ) {
                 return _updateFile( 'files', instanceId, file );
@@ -456,8 +484,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             /**
              * Removes a record file
              *
-             * @param  {string} instanceId [description]
-             * @return {Promise}            [description]
+             * @param  {string} instanceId  instanceId that is part of the record (meta>instancID)
+             * @param  {string} fileKey     unique key that identifies the file in the record (meant to be fileName)
+             * @return {Promise}
              */
             remove: function( instanceId, fileKey ) {
                 return server.files.remove( instanceId + ':' + fileKey );
