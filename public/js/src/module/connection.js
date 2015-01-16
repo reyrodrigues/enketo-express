@@ -567,7 +567,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
      * Obtains a media/data file
      * JQuery ajax doesn't support blob responses, so we're going native here.
      *
-     * @return {[type]} [description]
+     * @return {Promise} [description]
      */
     function getFile( url ) {
         var deferred = Q.defer(),
@@ -575,7 +575,10 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
 
         xhr.onreadystatechange = function() {
             if ( this.readyState == 4 && this.status == 200 ) {
-                deferred.resolve( this.response );
+                deferred.resolve( {
+                    url: url,
+                    item: this.response
+                } );
             }
             // TODO: add fail handler
         };

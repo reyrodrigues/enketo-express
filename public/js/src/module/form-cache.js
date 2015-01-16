@@ -45,21 +45,21 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
     }
 
     function get( survey ) {
-        return store.getSurvey( survey.enketoId );
+        return store.survey.get( survey.enketoId );
     }
 
     function set( survey ) {
         return connection.getFormParts( survey )
             .then( _swapMediaSrc )
-            .then( store.setSurvey );
+            .then( store.survey.set );
     }
 
     function remove( survey ) {
-        return store.removeSurvey( survey.enketoId );
+        return store.survey.remove( survey.enketoId );
     }
 
     function update( survey ) {
-        return store.updateSurvey( survey );
+        return store.survey.update( survey );
     }
 
     function _setUpdateIntervals( survey ) {
@@ -90,42 +90,35 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
         return deferred.promise;
     }
 
+    /**
+     * Loads survey resources either from the store or via HTTP (and stores them)
+     *
+     * @param  {[type]} survey [description]
+     * @return {Promise}        [description]
+     */
     function updateMedia( survey ) {
         var requests = [];
 
-        // if survey.resources exists, the resource are available in the store
+        // if survey.resources exists, the resources are available in the store
         if ( survey.resources ) {
             return _loadMedia( survey );
         }
 
-        // download, store and load the resources
-        console.debug( 'getting media' );
-
         survey.files = [];
-        survey.resources = [];
 
         _getElementsGroupedBySrc( survey.$form ).forEach( function( elements ) {
             var src = elements[ 0 ].dataset.offlineSrc;
-            survey.resources.push( src );
             requests.push( connection.getFile( src ) );
         } );
 
         return Q.all( requests )
             .then( function( resources ) {
                 var deferred = Q.defer();
-
-                resources.forEach( function( resource, index ) {
-                    var url = survey.resources[ index ];
-
-                    survey.files.push( {
-                        url: url,
-                        item: resource
-                    } );
-                } );
+                survey.files = resources;
                 deferred.resolve( survey );
                 return deferred.promise;
             } )
-            .then( store.updateSurvey )
+            .then( store.survey.update )
             .then( _loadMedia );
     }
 
@@ -134,16 +127,14 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
             deferred = Q.defer(),
             URL = window.URL || window.webkitURL;
 
-        console.debug( 'loading media from storage' );
-
         _getElementsGroupedBySrc( survey.$form ).forEach( function( elements ) {
             var src = elements[ 0 ].dataset.offlineSrc;
 
-            store.getResource( survey.enketoId, src )
+            store.survey.resource.get( survey.enketoId, src )
                 .then( function( resource ) {
                     // var srcUsedInsideRepeat;
                     // create a resourceURL
-                    resourceUrl = URL.createObjectURL( resource );
+                    resourceUrl = URL.createObjectURL( resource.item );
                     // add this resourceURL as the src for all elements in the group
                     elements.forEach( function( element ) {
                         element.src = resourceUrl;
@@ -189,6 +180,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
     }
 
     function _updateCache( survey ) {
+
         console.debug( 'checking for survey update' );
 
         connection.getFormPartsHash( survey )
@@ -206,7 +198,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
                             return deferred.promise;
                         } )
                         .then( _swapMediaSrc )
-                        .then( store.updateSurvey )
+                        .then( store.survey.update )
                         .then( function( result ) {
                             // set the hash so that subsequent update checks won't redownload the form
                             hash = result.hash;
@@ -239,12 +231,9 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
      * @return {Promise} [description]
      */
     function flush() {
-        return store.flushTable( 'surveys' )
+        return store.survey.removeAll()
             .then( function() {
-                store.flushTable( 'resources' );
-            } )
-            .then( function() {
-                console.log( 'Done! The form cache is empty now.' );
+                console.log( 'Done! The form cache is empty now. (Records have not been removed)' );
                 return;
             } );
     }
@@ -252,8 +241,8 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
     return {
         init: init,
         get: get,
-        set: set,
-        update: update,
+        //set: set,
+        //update: update,
         updateMedia: updateMedia,
         remove: remove,
         flush: flush
