@@ -20,32 +20,15 @@
 
 define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     "use strict";
-    var server, blobEncoding,
+    var server, blobEncoding, propertyStore, recordStore, surveyStore, dump,
         databaseName = 'enketo';
-
-    /*
-    record:
-        instanceName( string, indexed, unique for id)
-        //id (string indexed, not unique)
-        lastSaved( number )
-        record( xml )
-        draft( boolean )
-        files( blobs with property name: filename )
-
-    survey:
-        id (string, indexed, key, unique)
-        form (html)
-        model (xml)
-        version (string)
-        media (blobs with property name: full file path)
-        extData 
-    */
 
     function init() {
         return db.open( {
                 server: databaseName,
                 version: 1,
                 schema: {
+                    // the surveys
                     surveys: {
                         key: {
                             keyPath: 'enketoId',
@@ -57,7 +40,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             }
                         }
                     },
-                    // the resources that belong to a form
+                    // the resources that belong to a survey
                     resources: {
                         key: {
                             autoIncrement: false
@@ -97,6 +80,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             }
                         }
                     },
+                    // settings or other global app properties
                     properties: {
                         key: {
                             keyPath: 'name',
@@ -126,7 +110,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     function _isWriteable( dbName ) {
-        return updateProperty( {
+        return propertyStore.update( {
             name: 'testWrite',
             value: new Date().getTime()
         } );
@@ -137,7 +121,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         var aBlob = new Blob( [ '<a id="a"><b id="b">hey!</b></a>' ], {
             type: 'text/xml'
         } );
-        return updateProperty( {
+        return propertyStore.update( {
             name: 'testBlobWrite',
             value: aBlob
         } );
@@ -162,26 +146,325 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         return deferred.promise;
     }
 
-    function updateProperty( property ) {
-        return server.properties.update( property )
-            .then( _firstItemOnly );
-    }
+    propertyStore = {
+        get: function( name ) {
+            return server.properties.get( name )
+                .then( _firstItemOnly );
+        },
+        update: function( property ) {
+            return server.properties.update( property )
+                .then( _firstItemOnly );
+        },
+        removeAll: function() {
+            return _flushTable( 'properties' );
+        },
+    };
 
-    function getProperty( name ) {
-        return server.properties.get( name )
-            .then( _firstItemOnly );
-    }
+    surveyStore = {
+        /** 
+         * Obtains a single survey's form HTML and XML model from storage
+         * @param  {[type]} id [description]
+         * @return {[type]}    [description]
+         */
+        get: function( id ) {
+            console.debug( 'attempting to obtain survey from storage', id );
+            return server.surveys.get( id )
+                .then( _firstItemOnly );
+        },
+        /**
+         * Stores a single survey's form HTML and XML model
+         *
+         * @param {[type]} survey [description]
+         * @return {Promise}        [description]
+         */
+        set: function( survey ) {
+            console.debug( 'attempting to store new survey' );
+            if ( !survey.form || !survey.model || !survey.enketoId || !survey.hash ) {
+                throw new Error( 'Survey not complete' );
+            }
+            return server.surveys.add( survey )
+                .then( _firstItemOnly );
+        },
+        /**
+         * Updates a single survey's form HTML and XML model as well any external resources belonging to the form
+         *
+         * @param  {[type]} s [description]
+         * @return {Promise}        [description]
+         */
+        update: function( survey ) {
+            console.debug( 'attempting to update stored survey' );
+            if ( !survey.form || !survey.model || !survey.enketoId ) {
+                throw new Error( 'Survey not complete' );
+            }
 
-    /** 
-     * Obtains a single survey's form HTML and XML model from storage
-     * @param  {[type]} id [description]
-     * @return {[type]}    [description]
-     */
-    function getSurvey( id ) {
-        console.debug( 'attempting to obtain survey from storage', id );
-        return server.surveys.get( id )
-            .then( _firstItemOnly );
-    }
+            // TODO: create diff of files between existing and new record and remove
+            // the files that are obsolete
+
+            return server.surveys.update( {
+                    form: survey.form,
+                    model: survey.model,
+                    enketoId: survey.enketoId,
+                    hash: survey.hash,
+                    resources: survey.resources
+                } )
+                .then( function() {
+                    var tasks = [];
+                    survey.files = survey.files || [];
+                    survey.files.forEach( function( file ) {
+                        tasks.push( surveyStore.resource.update( survey.enketoId, file ) );
+                    } );
+
+                    return Q.all( tasks )
+                        .then( function() {
+                            var deferred = Q.defer();
+                            // resolving with original survey (not the array returned by server.surveys.update)
+                            deferred.resolve( survey );
+                            return deferred.promise;
+                        } );
+                } );
+        },
+        /**
+         * Removes survey form and all its resources
+         *
+         * @param  {[type]} id [description]
+         * @return {Promise}    [description]
+         */
+        remove: function( id ) {
+            var resources,
+                tasks = [];
+
+            return surveyStore.get( id )
+                .then( function( survey ) {
+                    resources = survey.resources || [];
+                    resources.forEach( function( resource ) {
+                        console.debug( 'adding removal of ', resource, 'to remove task queue' );
+                        tasks.push( surveyStore.resource.remove( id, resource ) );
+                    } );
+                    tasks.push( server.surveys.remove( id ) );
+                    return Q.all( tasks );
+                } );
+        },
+        /**
+         * removes all surveys and survey resources
+         * @return {Promise} [description]
+         */
+        removeAll: function() {
+            return _flushTable( 'surveys' )
+                .then( function() {
+                    return _flushTable( 'resources' );
+                } );
+        },
+        resource: {
+            /**
+             * Obtains a form resource
+             * @param  {string} id  Enketo survey ID
+             * @param  {string} url URL of resource
+             * @return {Promise}
+             */
+            get: function( id, url ) {
+                return _getFile( 'resources', id, url );
+            },
+            /**
+             * Updates a form resource in storage or creates it if it does not yet exist.
+             *
+             * @param  {{item:Blob, url:string}} resource
+             * @return {[type]}          [description]
+             */
+            update: function( id, resource ) {
+                return _updateFile( 'resources', id, resource );
+            },
+            /**
+             * Removes form resource
+             *
+             * @param  {string} id  Enketo survey ID
+             * @param  {string} url URL of resource
+             * @return {Promise}
+             */
+            remove: function( id, url ) {
+                return server.resources.remove( id + ':' + url );
+            }
+        }
+    };
+
+    recordStore = {
+        /** 
+         * Obtains a single record (XML + files)
+         *
+         * @param  {[type]} record [description]
+         * @return {Promise}        [description]
+         */
+        get: function( instanceId ) {
+            return server.records.get( instanceId )
+                .then( _firstItemOnly )
+                .then( function( record ) {
+                    var fileKey,
+                        tasks = [];
+
+                    record.files.forEach( function( fileKey ) {
+                        tasks.push( recordStore.file.get( record.instanceId, fileKey ) );
+                    } );
+
+                    return Q.all( tasks )
+                        .then( function( files ) {
+                            record.files = files;
+                            return record;
+                        } );
+                } );
+        },
+        /**
+         * Sets a new single record (XML + files)
+         *
+         * @param {[type]} record [description]
+         * @return {Promise}        [description]
+         */
+        set: function( record ) {
+            var fileKeys;
+
+            console.debug( 'attempting to store new record' );
+
+            //var deferred = Q.defer();
+            // deferred.reject( new Error( 'record setting error' ) );
+            //return deferred.promise;
+
+            if ( !record.instanceId || !record.name || !record.xml ) {
+                throw new Error( 'Record not complete' );
+            }
+
+            record.files = record.files || [];
+
+            // build array of file keys
+            fileKeys = record.files.map( function( file ) {
+                return file.key;
+            } );
+
+            return server.records.add( {
+                    instanceId: record.instanceId,
+                    name: record.name,
+                    xml: record.xml,
+                    files: fileKeys,
+                    updated: new Date().getTime(),
+                    draft: record.draft
+                } )
+                .then( function() {
+                    var tasks = [];
+
+                    record.files.forEach( function( file ) {
+                        tasks.push( recordStore.file.update( record.instanceId, file ) );
+                    } );
+
+                    return Q.all( tasks )
+                        .then( function() {
+                            return record;
+                        } );
+                } );
+        },
+        /**
+         * Updates (or creates) a single record (XML + files)
+         *
+         * @param {[type]} record [description]
+         * @return {Promise}        [description]
+         */
+        update: function( record ) {
+            var fileKeys;
+
+            console.debug( 'attempting to update a stored record' );
+
+            if ( !record.instanceId || !record.name || !record.xml ) {
+                throw new Error( 'Record not complete' );
+            }
+
+            record.files = record.files || [];
+
+            // build array of file keys
+            fileKeys = record.files.map( function( file ) {
+                return file.key;
+            } );
+
+            // TODO: create diff of files between existing and new record and remove
+            // the files that are obsolete
+
+            return server.records.update( {
+                    instanceId: record.instanceId,
+                    name: record.name,
+                    xml: record.xml,
+                    files: fileKeys,
+                    updated: new Date().getTime(),
+                    draft: record.draft
+                } )
+                .then( function() {
+                    var tasks = [];
+
+                    record.files.forEach( function( file ) {
+                        tasks.push( recordStore.file.update( record.instanceId, file ) );
+                    } );
+
+                    return Q.all( tasks )
+                        .then( function() {
+                            var deferred = Q.defer();
+                            // resolving with original survey (not the array returned by server.records.update)
+                            deferred.resolve( record );
+                            return deferred.promise;
+                        } );
+                } );
+        },
+        /** 
+         * Removes a single record (XML + files)
+         *
+         * @param {[type]} record [description]
+         * @return {Promise}        [description]
+         */
+        remove: function( instanceId ) {
+            var files,
+                tasks = [];
+
+            return record.get( instanceId )
+                .then( function( record ) {
+                    files = record.files || [];
+                    files.forEach( function( fileKey ) {
+                        console.debug( 'adding removal of ', fileKey, 'to remove task queue' );
+                        tasks.push( recordStore.file.remove( instanceId, fileKey ) );
+                    } );
+                    tasks.push( server.records.remove( instanceId ) );
+
+                    return Q.all( tasks );
+                } );
+        },
+        /**
+         * removes all records and record files
+         * @return {[type]} [description]
+         */
+        removeAll: function() {
+            return _flushTable( 'records' )
+                .then( function() {
+                    return _flushTable( 'files' );
+                } );
+        },
+        file: {
+            get: function( instanceId, fileKey ) {
+                return _getFile( 'files', instanceId, fileKey );
+            },
+            /**
+             * Updates an file belonging to a record in storage or creates it if it does not yet exist. This function is exported
+             * for testing purposes, but not actually used as a public function in Enketo.
+             *
+             * @param  {{item:Blob, name:string}} file The key consist of a concatenation of the id, _, and the URL
+             * @return {[type]}          [description]
+             */
+            update: function( instanceId, file ) {
+                return _updateFile( 'files', instanceId, file );
+            },
+            /**
+             * Removes a record file
+             *
+             * @param  {string} instanceId [description]
+             * @return {Promise}            [description]
+             */
+            remove: function( instanceId, fileKey ) {
+                return server.files.remove( instanceId + ':' + fileKey );
+            }
+        }
+    };
+
 
     /**
      * Db.js get and update functions return arrays. This function extracts the first item of the array
@@ -205,319 +488,12 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     /**
-     * Stores a single survey's form HTML and XML model
-     *
-     * @param {[type]} survey [description]
-     * @return {Promise}        [description]
+     * Obtains a file from a specified table
+     * @param  {string} table database table name
+     * @param  {string} id    Enketo id of the survey
+     * @param  {string} key   unique key of the file (url or fileName)
+     * @return {Promise}
      */
-    function setSurvey( survey ) {
-        console.debug( 'attempting to store new survey' );
-        if ( !survey.form || !survey.model || !survey.enketoId || !survey.hash ) {
-            throw new Error( 'Survey not complete' );
-        }
-        return server.surveys.add( survey )
-            .then( _firstItemOnly );
-    }
-
-    /**
-     * Removes survey form and all its resources
-     *
-     * @param  {[type]} id [description]
-     * @return {Promise}    [description]
-     */
-    function removeSurvey( id ) {
-        var resources,
-            tasks = [];
-
-        return getSurvey( id )
-            .then( function( survey ) {
-                console.debug( 'survey found', survey );
-                resources = survey.resources || [];
-                resources.forEach( function( resource ) {
-                    console.debug( 'adding removal of ', resource, 'to remove task queue' );
-                    tasks.push( removeResource( id, resource ) );
-                } );
-                tasks.push( server.surveys.remove( id ) );
-                return Q.all( tasks );
-            } );
-    }
-
-    /**
-     * Updates a single survey's form HTML and XML model as well any external resources belonging to the form
-     *
-     * @param  {[type]} survey [description]
-     * @return {Promise}        [description]
-     */
-    function updateSurvey( survey ) {
-        console.debug( 'attempting to update stored survey' );
-        if ( !survey.form || !survey.model || !survey.enketoId ) {
-            throw new Error( 'Survey not complete' );
-        }
-        return server.surveys.update( {
-                form: survey.form,
-                model: survey.model,
-                enketoId: survey.enketoId,
-                hash: survey.hash,
-                resources: survey.resources
-            } )
-            .then( function() {
-                var tasks = [];
-
-                survey.files = survey.files || [];
-
-                survey.files.forEach( function( file ) {
-                    tasks.push( updateResource( survey.enketoId, file ) );
-                } );
-
-                return Q.all( tasks )
-                    .then( function() {
-                        var deferred = Q.defer();
-                        // resolving with original survey (not the array returned by server.surveys.update)
-                        deferred.resolve( survey );
-                        return deferred.promise;
-                    } );
-            } );
-    }
-
-    /** 
-     * Obtains a single record (XML + files)
-     *
-     * @param  {[type]} record [description]
-     * @return {Promise}        [description]
-     */
-    function getRecord( instanceId ) {
-        return server.records.get( instanceId )
-            .then( _firstItemOnly )
-            .then( function( record ) {
-                var fileKey,
-                    tasks = [];
-
-                record.files.forEach( function( fileKey ) {
-                    tasks.push( getRecordFile( record.instanceId, fileKey ) );
-                } );
-
-                return Q.all( tasks )
-                    .then( function( files ) {
-                        record.files = files;
-                        return record;
-                    } );
-            } );
-    }
-
-    /**
-     * Sets a new single record (XML + files)
-     *
-     * @param {[type]} record [description]
-     * @return {Promise}        [description]
-     */
-    function setRecord( record ) {
-        var fileKeys;
-
-        console.debug( 'attempting to store new record' );
-
-        //var deferred = Q.defer();
-        // deferred.reject( new Error( 'record setting error' ) );
-        //return deferred.promise;
-
-        if ( !record.instanceId || !record.name || !record.xml ) {
-            throw new Error( 'Record not complete' );
-        }
-
-        record.files = record.files || [];
-
-        // build array of file keys
-        fileKeys = record.files.map( function( file ) {
-            return file.key;
-        } );
-
-        return server.records.add( {
-                instanceId: record.instanceId,
-                name: record.name,
-                xml: record.xml,
-                files: fileKeys,
-                updated: new Date().getTime(),
-                draft: record.draft
-            } )
-            .then( function() {
-                var tasks = [];
-
-                record.files.forEach( function( file ) {
-                    //file.key = record.instanceId + ':' + file.key;
-                    tasks.push( updateRecordFile( record.instanceId, file ) );
-                } );
-
-                return Q.all( tasks )
-                    .then( function() {
-                        //var deferred = Q.defer();
-                        // resolving with original record (not the array returned by server.records.add)
-                        //deferred.resolve( record );
-                        //return deferred.promise;
-                        return record;
-                    } );
-            } );
-    }
-
-    /**
-     * Updates (or creates) a single record (XML + files)
-     *
-     * @param {[type]} record [description]
-     * @return {Promise}        [description]
-     */
-    function updateRecord( record ) {
-        var fileKeys;
-
-        console.debug( 'attempting to update a stored record' );
-
-        if ( !record.instanceId || !record.name || !record.xml ) {
-            throw new Error( 'Record not complete' );
-        }
-
-        record.files = record.files || [];
-
-        // build array of file keys
-        fileKeys = record.files.map( function( file ) {
-            return file.key;
-        } );
-        return server.records.update( {
-                instanceId: record.instanceId,
-                name: record.name,
-                xml: record.xml,
-                files: fileKeys,
-                updated: new Date().getTime(),
-                draft: record.draft
-            } )
-            .then( function() {
-                var tasks = [];
-
-                record.files.forEach( function( file ) {
-                    tasks.push( updateRecordFile( record.instanceId, file ) );
-                } );
-
-                return Q.all( tasks )
-                    .then( function() {
-                        var deferred = Q.defer();
-                        // resolving with original survey (not the array returned by server.records.update)
-                        deferred.resolve( record );
-                        return deferred.promise;
-                    } );
-            } );
-    }
-
-    /** 
-     * Removes a single record (XML + files)
-     *
-     * @param {[type]} record [description]
-     * @return {Promise}        [description]
-     */
-    function removeRecord( instanceId ) {
-        var files,
-            tasks = [];
-
-        return getRecord( instanceId )
-            .then( function( record ) {
-                console.debug( 'record, found', record );
-                files = record.files || [];
-                files.forEach( function( fileKey ) {
-                    console.debug( 'adding removal of ', fileKey, 'to remove task queue' );
-                    tasks.push( removeRecordFile( instanceId, fileKey ) );
-                } );
-                tasks.push( server.records.remove( instanceId ) );
-                return Q.all( tasks );
-            } );
-    }
-
-    /**
-     * Updates an external resource in storage or creates it if it does not yet exist. This function is exported
-     * for testing purposes, but not actually used as a public function in Enketo.
-     *
-     * @param  {{item:Blob, url:string}} resource
-     * @return {[type]}          [description]
-     */
-    function updateResource( id, resource ) {
-        var deferred, error;
-
-        console.log( 'updating resource', id, JSON.stringify( resource ), 'to be encoded', blobEncoding );
-
-        if ( id && resource && resource.item instanceof Blob && resource.url ) {
-            resource.key = id + ':' + resource.url;
-            delete resource.url;
-            if ( blobEncoding ) {
-                /*
-                 * IE doesn't like complex objects with Blob properties so we store the blob as the value.
-                 * The files table does not have a keyPath for this reason.
-                 * The format of file (item: Blob, key: string) is db.js way of directing
-                 * it to store the blob instance as the value.
-                 */
-                return utils.blobToDataUri( resource.item )
-                    .then( function( convertedBlob ) {
-                        resource.item = convertedBlob;
-                        return server.resources.update( resource );
-                    } );
-            } else {
-                return server.resources.update( resource );
-            }
-        } else {
-            deferred = Q.defer();
-            error = new Error( 'DataError. File not complete or enketoId not provided.' );
-            error.name = 'DataError';
-            deferred.reject( error );
-            return deferred.promise;
-        }
-
-    }
-
-    function getResource( id, url ) {
-        return _getFile( 'resources', id, url );
-    }
-
-    function removeResource( id, url ) {
-        return server.resources.remove( id + ':' + url );
-    }
-
-    /**
-     * Updates an file belonging to a record in storage or creates it if it does not yet exist. This function is exported
-     * for testing purposes, but not actually used as a public function in Enketo.
-     *
-     * @param  {{item:Blob, name:string}} file The key consist of a concatenation of the id, _, and the URL
-     * @return {[type]}          [description]
-     */
-    function updateRecordFile( instanceId, file ) {
-        var deferred, error;
-
-        console.debug( 'adding record file to db', instanceId, file );
-
-        if ( instanceId && file && file.item instanceof Blob && file.name ) {
-            file.key = instanceId + ':' + file.name;
-            delete file.name;
-            /*
-             * IE doesn't like complex objects with Blob properties so we store the blob as the value.
-             * The files table does not have a keyPath for this reason.
-             * The format of file (item: Blob, key: string) is db.js way of directing
-             * it to store the blob instance as the value.
-             */
-            if ( blobEncoding ) {
-                return utils.blobToDataUri( file.item )
-                    .then( function( convertedBlob ) {
-                        file.item = convertedBlob;
-                        return server.files.update( file );
-                    } );
-            } else {
-                return server.files.update( file );
-            }
-        } else {
-            deferred = Q.defer();
-            error = new Error( 'DataError. File not complete or instanceId not provided.' );
-            error.name = 'DataError';
-            deferred.reject( error );
-            return deferred.promise;
-        }
-
-    }
-
-    function getRecordFile( instanceId, fileKey ) {
-        return _getFile( 'files', instanceId, fileKey );
-    }
-
     function _getFile( table, id, key ) {
         var prop,
             file = {},
@@ -551,17 +527,54 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
     }
 
     /**
-     * Removes a record file
+     * Updates a file in a specified table or creates a new db entry if it doesn't exist.
      *
-     * @param  {string} instanceId [description]
-     * @return {Promise}            [description]
+     * @param  {string} table database table name
+     * @param  {string} id    Enketo id of the survey
+     * @param  {{url:string, name: string, item: Blob}} The new file (url or name property)
+     * @return {Promise]}       [description]
      */
-    function removeRecordFile( instanceId, fileKey ) {
-        return server.files.remove( instanceId + ':' + fileKey );
+    function _updateFile( table, id, file ) {
+        var error, prop,
+            deferred = Q.defer();
+
+        if ( table === 'resources' || table === 'files' ) {
+            prop = ( table === 'resources' ) ? 'url' : 'name';
+            if ( id && file && file.item instanceof Blob && file[ prop ] ) {
+                file.key = id + ':' + file[ prop ];
+                delete file[ prop ];
+                /*
+                 * IE doesn't like complex objects with Blob properties so we store
+                 * the blob as the value.
+                 * The files table does not have a keyPath for this reason.
+                 * The format of file (item: Blob, key: string) is db.js way of directing
+                 * it to store the blob instance as the value.
+                 */
+                if ( blobEncoding ) {
+                    return utils.blobToDataUri( file.item )
+                        .then( function( convertedBlob ) {
+                            file.item = convertedBlob;
+                            return server[ table ].update( file );
+                        } );
+                } else {
+                    return server[ table ].update( file );
+                }
+            } else {
+                error = new Error( 'DataError. File not complete or id not provided.' );
+                error.name = 'DataError';
+                deferred.reject( error );
+                return deferred.promise;
+            }
+        } else {
+            deferred.reject( new Error( 'Unknown table or issing id or key.' ) );
+        }
+
     }
 
-    // completely remove the database
-    // there is no db.js method for this yet
+    /**
+     * Completely remove the database (no db.js function for this yet)
+     * @return {[type]} [description]
+     */
     function flush() {
         var request,
             deferred = Q.defer();
@@ -596,12 +609,12 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @param  {string} table [description]
      * @return {Promise}       [description]
      */
-    function flushTable( table ) {
+    function _flushTable( table ) {
         return server[ table ].clear();
     }
 
-    // debugging utilities: should move elsewehere or be turned into useful functions that return promises
-    var dump = {
+    // debugging utilities: TODO: should move elsewhere or be turned into useful functions that return promises
+    dump = {
         resources: function() {
             server.resources
                 .query()
@@ -631,28 +644,41 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 } );
         },
         records: function() {
-
-        }
+            server.records
+                .query()
+                .all()
+                .execute()
+                .done( function( results ) {
+                    console.log( results.length + ' records found' );
+                    results.forEach( function( item ) {
+                        console.log( 'survey', item );
+                    } );
+                } );
+        },
+        files: function() {
+            server.files
+                .query()
+                .all()
+                .execute()
+                .done( function( results ) {
+                    console.log( results.length + ' resources found' );
+                    results.forEach( function( item ) {
+                        if ( item instanceof Blob ) {
+                            console.log( item.type, item.size, URL.createObjectURL( item ) );
+                        } else {
+                            console.log( 'resource string with length ', item.length, 'found' );
+                        }
+                    } );
+                } );
+        },
     };
 
     return {
         init: init,
-        getProperty: getProperty,
-        updateProperty: updateProperty,
+        property: propertyStore,
+        survey: surveyStore,
+        record: recordStore,
         flush: flush,
-        flushTable: flushTable,
-        getSurvey: getSurvey,
-        setSurvey: setSurvey,
-        updateSurvey: updateSurvey,
-        removeSurvey: removeSurvey,
-        getRecord: getRecord,
-        setRecord: setRecord,
-        updateRecord: updateRecord,
-        removeRecord: removeRecord,
-        getResource: getResource,
-        updateResource: updateResource,
-        getRecordFile: getRecordFile,
-        updateRecordFile: updateRecordFile,
         dump: dump
     };
 

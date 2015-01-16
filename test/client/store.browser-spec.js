@@ -53,12 +53,12 @@ define( [ 'store' ], function( store ) {
         describe( 'storing settings and properties', function() {
 
             beforeEach( function( done ) {
-                store.flushTable( 'properties' )
+                store.property.removeAll()
                     .then( done, done );
             } );
 
             it( 'fails if the setting object has no "name" property', function( done ) {
-                store.updateProperty( {
+                store.property.update( {
                         something: 'something'
                     } )
                     .catch( function( e ) {
@@ -72,9 +72,9 @@ define( [ 'store' ], function( store ) {
                     name: 'something',
                     value: new Date().getTime()
                 };
-                store.updateProperty( toSet )
+                store.property.update( toSet )
                     .then( function() {
-                        return store.getProperty( 'something' );
+                        return store.property.get( 'something' );
                     } )
                     .then( function( setting ) {
                         expect( setting ).to.deep.equal( toSet );
@@ -93,9 +93,9 @@ define( [ 'store' ], function( store ) {
                         }
                     }
                 };
-                store.updateProperty( toSet )
+                store.property.update( toSet )
                     .then( function() {
-                        return store.getProperty( 'something' );
+                        return store.property.get( 'something' );
                     } )
                     .then( function( setting ) {
                         expect( setting ).to.deep.equal( toSet );
@@ -111,13 +111,13 @@ define( [ 'store' ], function( store ) {
                     },
                     newValue = 'something else';
 
-                store.updateProperty( toSet )
+                store.property.update( toSet )
                     .then( function( setting ) {
                         setting.value = newValue;
-                        return store.updateProperty( setting );
+                        return store.property.update( setting );
                     } )
                     .then( function() {
-                        return store.getProperty( 'something' );
+                        return store.property.get( 'something' );
                     } )
                     .then( function( setting ) {
                         expect( setting.value ).to.equal( newValue );
@@ -131,12 +131,12 @@ define( [ 'store' ], function( store ) {
         describe( 'storing (form) resources', function() {
 
             beforeEach( function( done ) {
-                store.flushTable( 'resources' )
+                store.survey.removeAll()
                     .then( done, done );
             } );
 
             it( 'fails if the resource has no "url" property', function( done ) {
-                store.updateResource( 'abcd', {
+                store.survey.resource.update( 'abcd', {
                         something: 'something'
                     } )
                     .catch( function( e ) {
@@ -146,7 +146,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the setting object has no "item" property', function( done ) {
-                store.updateResource( 'abcd', {
+                store.survey.resource.update( 'abcd', {
                         url: 'something'
                     } )
                     .catch( function( e ) {
@@ -156,7 +156,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the "item" is not a Blob', function( done ) {
-                store.updateResource( 'abcd', {
+                store.survey.resource.update( 'abcd', {
                         key: 'something'
                     } )
                     .catch( function( e ) {
@@ -169,9 +169,9 @@ define( [ 'store' ], function( store ) {
                 var id = 'TESt',
                     url = resourceA.url;
 
-                store.updateResource( id, resourceA )
+                store.survey.resource.update( id, resourceA )
                     .then( function( stored ) {
-                        return store.getResource( id, url );
+                        return store.survey.resource.get( id, url );
                     } )
                     .then( function( result ) {
                         expect( result.item.type ).to.equal( resourceA.item.type );
@@ -189,7 +189,7 @@ define( [ 'store' ], function( store ) {
             var original = '{"enketoId": "TESt", "form": "<form class=\\"or\\"></form>", "model": "<model></model>", "hash": "12345"}';
 
             beforeEach( function( done ) {
-                store.flushTable( 'surveys' )
+                store.survey.removeAll()
                     .then( done, done );
             } );
 
@@ -198,7 +198,7 @@ define( [ 'store' ], function( store ) {
                 delete survey.form;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setSurvey( survey );
+                    store.survey.set( survey );
                 } ).to.throw( /not complete/ );
             } );
 
@@ -207,7 +207,7 @@ define( [ 'store' ], function( store ) {
                 delete survey.model;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setSurvey( survey );
+                    store.survey.set( survey );
                 } ).to.throw( /not complete/ );
             } );
 
@@ -216,7 +216,7 @@ define( [ 'store' ], function( store ) {
                 delete survey.enketoId;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setSurvey( survey );
+                    store.survey.set( survey );
                 } ).to.throw( /not complete/ );
             } );
 
@@ -225,17 +225,17 @@ define( [ 'store' ], function( store ) {
                 delete survey.hash;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setSurvey( survey );
+                    store.survey.set( survey );
                 } ).to.throw( /not complete/ );
             } );
 
             it( 'succeeds if the survey has the required properties and doesn\'t exist already', function( done ) {
                 var survey = JSON.parse( original );
-                store.setSurvey( survey )
+                store.survey.set( survey )
                     .then( function( result ) {
                         // check response of setSurvey
                         expect( result ).to.deep.equal( survey );
-                        return store.getSurvey( survey.enketoId );
+                        return store.survey.get( survey.enketoId );
                     } )
                     .then( function( result ) {
                         // check response of getSurvey
@@ -246,9 +246,9 @@ define( [ 'store' ], function( store ) {
 
             it( 'fails if a survey with that id already exists in the db', function( done ) {
                 var survey = JSON.parse( original );
-                store.setSurvey( survey )
+                store.survey.set( survey )
                     .then( function() {
-                        return store.setSurvey( survey );
+                        return store.survey.set( survey );
                     } )
                     .catch( function( item, e ) {
                         expect( true ).to.equal( true );
@@ -261,7 +261,7 @@ define( [ 'store' ], function( store ) {
         describe( 'getting surveys', function() {
 
             it( 'returns undefined if a survey does not exist', function( done ) {
-                store.getSurvey( 'nonexisting' )
+                store.survey.get( 'nonexisting' )
                     .then( function( result ) {
                         expect( result ).to.equal( undefined );
                     } )
@@ -274,26 +274,23 @@ define( [ 'store' ], function( store ) {
             var original = '{"enketoId": "TESt", "form": "<form class=\\"or\\"></form>", "model": "<model></model>", "hash": "12345"}';
 
             beforeEach( function( done ) {
-                store.flushTable( 'surveys' )
-                    .then( function() {
-                        store.flushTable( 'resources' );
-                    } )
+                store.survey.removeAll()
                     .then( done, done );
             } );
 
             it( 'succeeds if the survey has the required properties and contains no file resources', function( done ) {
                 var survey = JSON.parse( original );
 
-                store.setSurvey( survey )
+                store.survey.set( survey )
                     .then( function() {
                         survey.model = '<model><new>value</new></model>';
                         survey.hash = '6789';
-                        return store.updateSurvey( survey );
+                        return store.survey.update( survey );
                     } )
                     .then( function( result ) {
                         // check response of updateSurvey
                         expect( result ).to.deep.equal( survey );
-                        return store.getSurvey( survey.enketoId );
+                        return store.survey.get( survey.enketoId );
                     } )
                     .then( function( result ) {
                         // check response of getSurvey
@@ -307,16 +304,16 @@ define( [ 'store' ], function( store ) {
                 var survey = JSON.parse( original ),
                     urlA = resourceA.url;
 
-                store.setSurvey( survey )
+                store.survey.set( survey )
                     .then( function() {
                         survey.resources = [ resourceA.url, resourceB.url ];
                         survey.files = [ resourceA, resourceB ];
-                        return store.updateSurvey( survey );
+                        return store.survey.update( survey );
                     } )
                     .then( function( result ) {
                         // check response of updateSurvey
                         expect( result ).to.deep.equal( survey );
-                        return store.getResource( result.enketoId, urlA );
+                        return store.survey.resource.get( result.enketoId, urlA );
                     } )
                     .then( function( result ) {
                         // check response of getResource
@@ -332,22 +329,19 @@ define( [ 'store' ], function( store ) {
             var original = '{"enketoId": "TESty", "form": "<form class=\\"or\\"></form>", "model": "<model></model>", "hash": "12345"}';
 
             beforeEach( function( done ) {
-                store.flushTable( 'surveys' )
-                    .then( function() {
-                        store.flushTable( 'resources' );
-                    } )
+                store.survey.removeAll()
                     .then( done, done );
             } );
 
             it( 'succeeds if the survey contains no files', function( done ) {
                 var survey = JSON.parse( original );
 
-                store.setSurvey( survey )
+                store.survey.set( survey )
                     .then( function() {
-                        return store.removeSurvey( survey.enketoId );
+                        return store.survey.remove( survey.enketoId );
                     } )
                     .then( function() {
-                        return store.getSurvey( survey.enketoId );
+                        return store.survey.get( survey.enketoId );
                     } )
                     .then( function( result ) {
                         expect( result ).to.equal( undefined );
@@ -361,20 +355,20 @@ define( [ 'store' ], function( store ) {
 
                 survey.enketoId = survey.enketoId + Math.random();
 
-                store.setSurvey( survey )
+                store.survey.set( survey )
                     .then( function( result ) {
                         console.debug( "RESULT of SET", JSON.stringify( result ) );
                         survey.resources = [ resourceA.url, resourceB.url ];
                         survey.files = [ resourceA, resourceB ];
-                        return store.updateSurvey( survey );
+                        return store.survey.update( survey );
                     } )
                     .then( function( result ) {
                         console.debug( "RESULT of UPDATE", JSON.stringify( result ) );
-                        return store.removeSurvey( survey.enketoId );
+                        return store.survey.remove( survey.enketoId );
                     } )
                     .then( function( result ) {
                         console.debug( "RESULT of REMOVE", JSON.stringify( result ) );
-                        return store.getResource( survey.enketoId, url );
+                        return store.survey.resource.get( survey.enketoId, url );
                     } )
                     .then( function( result ) {
                         console.debug( "RESULT of GETRESOURCE", JSON.stringify( result ) );
@@ -389,12 +383,12 @@ define( [ 'store' ], function( store ) {
         describe( 'storing (record) files', function() {
 
             beforeEach( function( done ) {
-                store.flushTable( 'files' )
+                store.record.removeAll()
                     .then( done, done );
             } );
 
             it( 'fails if the resource has no "name" property', function( done ) {
-                store.updateRecordFile( 'abcd', {
+                store.record.file.update( 'abcd', {
                         item: fileA
                     } )
                     .catch( function( e ) {
@@ -404,7 +398,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the setting object has no "item" property', function( done ) {
-                store.updateRecordFile( 'abcd', {
+                store.record.file.update( 'abcd', {
                         name: 'something.jpg'
                     } )
                     .catch( function( e ) {
@@ -414,7 +408,7 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'fails if the "item" is not a Blob', function( done ) {
-                store.updateRecordFile( 'abcd', {
+                store.record.file.update( 'abcd', {
                         name: 'something',
                         item: 'a string'
                     } )
@@ -428,9 +422,9 @@ define( [ 'store' ], function( store ) {
                 var id = 'TESt',
                     name = fileA.name;
 
-                store.updateRecordFile( id, fileA )
+                store.record.file.update( id, fileA )
                     .then( function( stored ) {
-                        return store.getRecordFile( id, name );
+                        return store.record.file.get( id, name );
                     } )
                     .then( function( result ) {
                         expect( result.item.type ).to.equal( fileA.item.type );
@@ -448,7 +442,7 @@ define( [ 'store' ], function( store ) {
             var original = '{"instanceId": "myID", "name": "thename", "xml": "<model></model>"}';
 
             beforeEach( function( done ) {
-                store.flushTable( 'records' )
+                store.record.removeAll()
                     .then( done, done );
             } );
 
@@ -457,7 +451,7 @@ define( [ 'store' ], function( store ) {
                 delete rec.instanceId;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setRecord( rec );
+                    store.record.set( rec );
                 } ).to.throw( /not complete/ );
             } );
 
@@ -466,7 +460,7 @@ define( [ 'store' ], function( store ) {
                 delete rec.name;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setRecord( rec );
+                    store.record.set( rec );
                 } ).to.throw( /not complete/ );
             } );
 
@@ -475,16 +469,16 @@ define( [ 'store' ], function( store ) {
                 delete rec.xml;
                 // note: the throw assert works here because the error is thrown before in sync part of function
                 expect( function() {
-                    store.setRecord( rec );
+                    store.record.set( rec );
                 } ).to.throw( /not complete/ );
             } );
 
             it( 'succeeds if the record has the required properties and doesn\'t exist already', function( done ) {
                 var rec = JSON.parse( original );
-                store.setRecord( rec )
+                store.record.set( rec )
                     .then( function( result ) {
                         expect( result ).to.deep.equal( rec );
-                        return store.getRecord( rec.instanceId );
+                        return store.record.get( rec.instanceId );
                     } )
                     .then( function( result ) {
                         expect( result.instanceId ).to.equal( rec.instanceId );
@@ -501,9 +495,9 @@ define( [ 'store' ], function( store ) {
                 var rec = JSON.parse( original );
                 rec.name = "another name";
 
-                store.setRecord( rec )
+                store.record.set( rec )
                     .then( function() {
-                        return store.setRecord( rec );
+                        return store.record.set( rec );
                     } )
                     .catch( function( e ) {
                         // TODO FF throws a ConstraintError but for some reason this is not caught here
@@ -519,18 +513,18 @@ define( [ 'store' ], function( store ) {
             var original = '{"instanceId": "myID", "name": "thename", "xml": "<model></model>"}';
 
             beforeEach( function( done ) {
-                store.flushTable( 'records' )
+                store.record.removeAll()
                     .then( done, done );
             } );
 
             it( 'fails if the updated record has no "instanceId" property', function( done ) {
                 var rec = JSON.parse( original );
 
-                store.setRecord( rec )
+                store.record.set( rec )
                     .then( function() {
                         delete rec.instanceId;
                         rec.xml = '<model><change>a</change></model>';
-                        return store.updateRecord( rec );
+                        return store.record.update( rec );
                     } )
                     .catch( function( e ) {
                         expect( e.message ).to.contain( 'not complete' );
@@ -541,11 +535,11 @@ define( [ 'store' ], function( store ) {
             it( 'fails if the updated record has no "name" property', function( done ) {
                 var rec = JSON.parse( original );
 
-                store.setRecord( rec )
+                store.record.set( rec )
                     .then( function() {
                         delete rec.name;
                         rec.xml = '<model><change>a</change></model>';
-                        return store.updateRecord( rec );
+                        return store.record.update( rec );
                     } )
                     .catch( function( e ) {
                         expect( e.message ).to.contain( 'not complete' );
@@ -556,10 +550,10 @@ define( [ 'store' ], function( store ) {
             it( 'fails if the updated record has no "xml" property', function( done ) {
                 var rec = JSON.parse( original );
 
-                store.setRecord( rec )
+                store.record.set( rec )
                     .then( function() {
                         delete rec.xml;
-                        return store.updateRecord( rec );
+                        return store.record.update( rec );
                     } )
                     .catch( function( e ) {
                         expect( e.message ).to.contain( 'not complete' );
@@ -569,10 +563,10 @@ define( [ 'store' ], function( store ) {
 
             it( 'succeeds if the updated record has the required properties', function( done ) {
                 var rec = JSON.parse( original );
-                store.setRecord( rec )
+                store.record.set( rec )
                     .then( function() {
                         rec.xml = '<model><change>a</change></model>';
-                        return store.updateRecord( rec );
+                        return store.record.update( rec );
                     } )
                     .then( function( result ) {
                         expect( result ).to.deep.equal( rec );
