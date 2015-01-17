@@ -104,7 +104,6 @@ require( [ 'form-cache', 'connection', 'q', 'jquery' ], function( formCache, con
                 survey.enketoId = '40';
                 formCache.init( survey )
                     .then( function( result ) {
-                        console.log( "RESULT", result );
                         expect( result.form ).to.contain( 'src=""' ).and.to.contain( 'data-offline-src="' + url1 + '"' );
                     } )
                     .then( done, done );

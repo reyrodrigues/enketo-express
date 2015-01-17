@@ -104,7 +104,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
             return _loadMedia( survey );
         }
 
-        survey.files = [];
+        survey.resources = [];
 
         _getElementsGroupedBySrc( survey.$form ).forEach( function( elements ) {
             var src = elements[ 0 ].dataset.offlineSrc;
@@ -114,7 +114,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
         return Q.all( requests )
             .then( function( resources ) {
                 var deferred = Q.defer();
-                survey.files = resources;
+                survey.resources = resources;
                 deferred.resolve( survey );
                 return deferred.promise;
             } )
@@ -160,7 +160,6 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
             $els = $form.find( '[data-offline-src]' );
 
         $els.each( function() {
-
             if ( !urls[ this.dataset.offlineSrc ] ) {
                 var src = this.dataset.offlineSrc,
                     $group = $els.filter( function() {

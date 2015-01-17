@@ -61,11 +61,17 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             keyPath: 'instanceId',
                         },
                         indexes: {
+                            // useful to check if name exists
                             name: {
                                 unique: true
                             },
+                            // the actual key
                             instanceId: {
                                 unique: true
+                            },
+                            // to get all records belonging to a form
+                            enketoId: {
+                                unique: false
                             }
                         }
                     },
@@ -167,7 +173,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {[type]}    [description]
          */
         get: function( id ) {
+
             console.debug( 'attempting to obtain survey from storage', id );
+
             return server.surveys.get( id )
                 .then( _firstItemOnly );
         },
@@ -178,7 +186,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}        [description]
          */
         set: function( survey ) {
+
             console.debug( 'attempting to store new survey' );
+
             if ( !survey.form || !survey.model || !survey.enketoId || !survey.hash ) {
                 throw new Error( 'Survey not complete' );
             }
@@ -192,27 +202,29 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}        [description]
          */
         update: function( survey ) {
-            var tasks = [],
+            var resourceKeys,
+                tasks = [],
                 obsoleteResources = [];
 
-            console.debug( 'attempting to update stored survey' );
+            console.debug( 'attempting to update a stored survey' );
 
             if ( !survey.form || !survey.model || !survey.enketoId ) {
                 throw new Error( 'Survey not complete' );
             }
 
-            survey.files = survey.files || [];
-            survey.resources = survey.files.map( function( resource ) {
+            survey.resources = survey.resources || [];
+
+            // build array of resource keys
+            resourceKeys = survey.resources.map( function( resource ) {
                 return resource.url;
             } );
 
             return server.surveys.get( survey.enketoId )
                 .then( function( result ) {
-                    // determine resources to be removed
+                    // determine obsolete resources to be removed
                     if ( result.resources ) {
-
                         obsoleteResources = result.resources.filter( function( existing ) {
-                            return survey.resources.indexOf( existing ) < 0;
+                            return resourceKeys.indexOf( existing ) < 0;
                         } );
                     }
                     // update the existing survey
@@ -221,17 +233,17 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                         model: survey.model,
                         enketoId: survey.enketoId,
                         hash: survey.hash,
-                        resources: survey.resources
+                        resources: resourceKeys
                     } );
                 } )
                 .then( function() {
                     // add new or update existing resources
-                    survey.files.forEach( function( file ) {
+                    survey.resources.forEach( function( file ) {
                         tasks.push( surveyStore.resource.update( survey.enketoId, file ) );
                     } );
                     // remove obsolete resources
-                    obsoleteResources.forEach( function( url ) {
-                        tasks.push( surveyStore.resource.remove( survey.enketoId, url ) );
+                    obsoleteResources.forEach( function( key ) {
+                        tasks.push( surveyStore.resource.remove( survey.enketoId, key ) );
                     } );
                     // execution
                     return Q.all( tasks )
@@ -314,11 +326,14 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}        [description]
          */
         get: function( instanceId ) {
+            var tasks = [];
+
             return server.records.get( instanceId )
                 .then( _firstItemOnly )
                 .then( function( record ) {
-                    var fileKey,
-                        tasks = [];
+                    if ( !record ) {
+                        return record;
+                    }
 
                     record.files.forEach( function( fileKey ) {
                         tasks.push( recordStore.file.get( record.instanceId, fileKey ) );
@@ -329,6 +344,33 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                             record.files = files;
                             return record;
                         } );
+                } );
+        },
+        /** 
+         * Obtains all stored records for a particular survey without record files
+         *
+         * @param  {string}  enketoId   EnketoId of the survey the record belongs to
+         * @param { boolean} finalonly  Only included records that are 'final' (i.e. not 'draft')
+         * @return {Promise}
+         */
+        getAll: function( enketoId, finalOnly ) {
+            if ( !enketoId ) {
+                throw new Error( 'No Enketo ID provided' );
+            }
+            return server.records.query( 'enketoId' )
+                .only( enketoId )
+                .execute()
+                .then( function( records ) {
+                    // exclude drafts if required
+                    if ( finalOnly ) {
+                        records = records.filter( function( record ) {
+                            return !record.draft;
+                        } );
+                    }
+                    // order by updated property, ascending
+                    return records.sort( function( a, b ) {
+                        return a.updated - b.updated;
+                    } );
                 } );
         },
         /**
@@ -346,7 +388,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             // deferred.reject( new Error( 'record setting error' ) );
             //return deferred.promise;
 
-            if ( !record.instanceId || !record.name || !record.xml ) {
+            if ( !record.instanceId || !record.enketoId || !record.name || !record.xml ) {
                 throw new Error( 'Record not complete' );
             }
 
@@ -354,11 +396,21 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
 
             // build array of file keys
             fileKeys = record.files.map( function( file ) {
-                return file.key;
+                return file.name;
             } );
 
+            console.debug( 'going to add new record', {
+                instanceId: record.instanceId,
+                enketoId: record.enketoId,
+                name: record.name,
+                xml: record.xml,
+                files: fileKeys,
+                updated: new Date().getTime(),
+                draft: record.draft
+            } );
             return server.records.add( {
                     instanceId: record.instanceId,
+                    enketoId: record.enketoId,
                     name: record.name,
                     xml: record.xml,
                     files: fileKeys,
@@ -367,13 +419,14 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 } )
                 .then( function() {
                     var tasks = [];
-
+                    console.debug( 'added the record, now checking files' );
                     record.files.forEach( function( file ) {
                         tasks.push( recordStore.file.update( record.instanceId, file ) );
                     } );
 
                     return Q.all( tasks )
                         .then( function() {
+                            console.debug( 'all save tasks completed!' );
                             return record;
                         } );
                 } );
@@ -385,11 +438,13 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}        [description]
          */
         update: function( record ) {
-            var fileKeys;
+            var fileKeys,
+                tasks = [],
+                obsoleteFiles = [];
 
             console.debug( 'attempting to update a stored record' );
 
-            if ( !record.instanceId || !record.name || !record.xml ) {
+            if ( !record.instanceId || !record.enketoId || !record.name || !record.xml ) {
                 throw new Error( 'Record not complete' );
             }
 
@@ -397,31 +452,41 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
 
             // build array of file keys
             fileKeys = record.files.map( function( file ) {
-                return file.key;
+                return file.name;
             } );
 
-            // TODO: create diff of files between existing and new record and remove
-            // the files that are obsolete
-
-            return server.records.update( {
-                    instanceId: record.instanceId,
-                    name: record.name,
-                    xml: record.xml,
-                    files: fileKeys,
-                    updated: new Date().getTime(),
-                    draft: record.draft
+            return server.records.get( record.instanceId )
+                .then( function( result ) {
+                    // determine obsolete files to be removed
+                    if ( result.files ) {
+                        obsoleteFiles = result.files.filter( function( existing ) {
+                            return fileKeys.indexOf( existing ) < 0;
+                        } );
+                    }
+                    // update the existing record
+                    return server.records.update( {
+                        instanceId: record.instanceId,
+                        name: record.name,
+                        xml: record.xml,
+                        files: fileKeys,
+                        updated: new Date().getTime(),
+                        draft: record.draft
+                    } );
                 } )
                 .then( function() {
-                    var tasks = [];
-
+                    // add new or update existing files
                     record.files.forEach( function( file ) {
                         tasks.push( recordStore.file.update( record.instanceId, file ) );
                     } );
-
+                    // remove obsolete files
+                    obsoleteFiles.forEach( function( key ) {
+                        tasks.push( recordStore.file.remove( record.instanceId, key ) );
+                    } );
+                    // execution
                     return Q.all( tasks )
                         .then( function() {
                             var deferred = Q.defer();
-                            // resolving with original survey (not the array returned by server.records.update)
+                            // resolving with original record (not the array returned by server.records.update)
                             deferred.resolve( record );
                             return deferred.promise;
                         } );
@@ -437,7 +502,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             var files,
                 tasks = [];
 
-            return record.get( instanceId )
+            return recordStore.get( instanceId )
                 .then( function( record ) {
                     files = record.files || [];
                     files.forEach( function( fileKey ) {
@@ -445,7 +510,6 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                         tasks.push( recordStore.file.remove( instanceId, fileKey ) );
                     } );
                     tasks.push( server.records.remove( instanceId ) );
-
                     return Q.all( tasks );
                 } );
         },
@@ -564,12 +628,13 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
      * @return {Promise]}       [description]
      */
     function _updateFile( table, id, file ) {
-        var error, prop,
+        var error, prop, propValue,
             deferred = Q.defer();
 
         if ( table === 'resources' || table === 'files' ) {
             prop = ( table === 'resources' ) ? 'url' : 'name';
             if ( id && file && file.item instanceof Blob && file[ prop ] ) {
+                propValue = file[ prop ];
                 file.key = id + ':' + file[ prop ];
                 delete file[ prop ];
                 /*
@@ -583,10 +648,20 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                     return utils.blobToDataUri( file.item )
                         .then( function( convertedBlob ) {
                             file.item = convertedBlob;
-                            return server[ table ].update( file );
+                            return server[ table ].update( file )
+                                .then( function() {
+                                    file[ prop ] = propValue;
+                                    delete file.key;
+                                    return file;
+                                } );
                         } );
                 } else {
-                    return server[ table ].update( file );
+                    return server[ table ].update( file )
+                        .then( function() {
+                            file[ prop ] = propValue;
+                            delete file.key;
+                            return file;
+                        } );
                 }
             } else {
                 error = new Error( 'DataError. File not complete or id not provided.' );
