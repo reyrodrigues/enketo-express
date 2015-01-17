@@ -61,7 +61,6 @@ require( [ 'form-cache', 'connection', 'q', 'jquery' ], function( formCache, con
                 survey.enketoId = '10';
                 formCache.init( survey )
                     .then( function( result ) {
-                        expect( getFormPartsSpy ).to.have.been.called;
                         expect( getFormPartsSpy ).to.have.been.calledWith( survey );
                     } )
                     .then( done, done );
@@ -75,7 +74,6 @@ require( [ 'form-cache', 'connection', 'q', 'jquery' ], function( formCache, con
                         return formCache.updateMedia( result );
                     } )
                     .then( function() {
-                        expect( getFileSpy ).to.have.been.called;
                         expect( getFileSpy ).to.have.been.calledWith( url1 );
                     } )
                     .then( done, done );
