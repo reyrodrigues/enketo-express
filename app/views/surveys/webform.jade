@@ -12,6 +12,10 @@ block script
     script(data-main="/js/src/main-webform#{suffix}.js", src="/lib/bower-components/requirejs/require.js")
  
 block content
+  if offline
+    .alert-box.warning(style="text-align: center;") Offline forms are experimental. Use only for testing. 
+      a(href="https://github.com/kobotoolbox/enketo-express/issues") Report new bugs
+      | .
   .main
     article.paper
       include component/_form-header
