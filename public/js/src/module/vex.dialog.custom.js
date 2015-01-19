@@ -1,11 +1,12 @@
 // last updated with mothership at https://github.com/HubSpot/vex v2.3.0
 
 ( function() {
+    "use strict";
     var vexDialogFactory;
 
     vexDialogFactory = function( $, vex ) {
-        var $formToObject, dialog;
-        if ( vex == null ) {
+        var $formToObject, dialog, $vexContent, timer, timerInterval;
+        if ( vex === null ) {
             return $.error( 'Vex is required to use vex.dialog' );
         }
         $formToObject = function( $form ) {
@@ -48,6 +49,7 @@
             value: false,
             buttons: [ dialog.buttons.YES, dialog.buttons.NO ],
             showCloseButton: false,
+            messageClassName: '',
             onSubmit: function( event ) {
                 var $form, $vexContent;
                 $form = $( this );
@@ -67,13 +69,16 @@
             message: 'Confirm'
         };
         dialog.open = function( options ) {
-            var $vexContent;
-            options = $.extend( {}, vex.defaultOptions, dialog.defaultOptions, options );
+            vex.close();
+            options = $.extend( true, {}, vex.defaultOptions, dialog.defaultOptions, options );
             options.content = dialog.buildDialogForm( options );
             options.beforeClose = function( $vexContent ) {
+                clearInterval( timerInterval );
+                clearTimeout( timer );
                 return options.callback( $vexContent.data().vex.value );
             };
             $vexContent = vex.open( options );
+            dialog.addAutoCloseTimer( options );
             if ( options.focusFirstInput ) {
                 $vexContent.find( 'button[type="submit"], button[type="button"], input[type="submit"], input[type="button"], textarea, input[type="date"], input[type="datetime"], input[type="datetime-local"], input[type="email"], input[type="month"], input[type="number"], input[type="password"], input[type="search"], input[type="tel"], input[type="text"], input[type="time"], input[type="url"], input[type="week"]' ).first().focus();
             }
@@ -108,11 +113,13 @@
             return dialog.open( options );
         };
         dialog.buildDialogForm = function( options ) {
-            var $form, $input, $message;
+            var $title, $form, $input, $message, $timer;
+            $title = $( '<h3 class="vex-dialog-title"/>' );
             $form = $( '<form class="vex-dialog-form" />' );
             $message = $( '<div class="vex-dialog-message" />' );
             $input = $( '<div class="vex-dialog-input" />' );
-            $form.append( $message.append( options.message ) ).append( $input.append( options.input ) ).append( dialog.buttonsToDOM( options.buttons ) ).bind( 'submit.vex', options.onSubmit );
+            $timer = $( '<div class="vex-auto-close-timer"/>' );
+            $form.append( $title.append( options.title ) ).append( $message.append( options.message ).addClass( options.messageClassName ) ).append( $input.append( options.input ) ).append( $timer ).append( dialog.buttonsToDOM( options.buttons ) ).bind( 'submit.vex', options.onSubmit );
             return $form;
         };
         dialog.getFormValueOnSubmit = function( formData ) {
@@ -138,6 +145,19 @@
                 return $button.appendTo( $buttons );
             } );
             return $buttons;
+        };
+        dialog.addAutoCloseTimer = function( options ) {
+            if ( options.autoClose && typeof options.autoClose === 'number' ) {
+                var timeLeft = options.autoClose,
+                    $timer = $vexContent.find( '.vex-auto-close-timer' ).text( timeLeft );
+                timerInterval = window.setInterval( function() {
+                    timeLeft--;
+                    $timer.text( timeLeft );
+                }, 1000 );
+                timer = window.setTimeout( function() {
+                    dialog.close();
+                }, options.autoClose * 1000 );
+            }
         };
         return dialog;
     };
