@@ -19,7 +19,8 @@
                     }
                     return object[ this.name ].push( this.value || '' );
                 } else {
-                    return object[ this.name ] = this.value || '';
+                    object[ this.name ] = this.value || '';
+                    return object[ this.name ];
                 }
             } );
             return object;
