@@ -5,7 +5,7 @@
     var vexDialogFactory;
 
     vexDialogFactory = function( $, vex ) {
-        var $formToObject, dialog, $vexContent, timer, timerInterval;
+        var $formToObject, dialog, timer, timerInterval;
         if ( vex === null ) {
             return $.error( 'Vex is required to use vex.dialog' );
         }
@@ -69,6 +69,7 @@
             message: 'Confirm'
         };
         dialog.open = function( options ) {
+            var $vexContent;
             vex.close();
             options = $.extend( true, {}, vex.defaultOptions, dialog.defaultOptions, options );
             options.content = dialog.buildDialogForm( options );
