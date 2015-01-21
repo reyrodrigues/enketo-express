@@ -13,7 +13,7 @@ block script
  
 block content
   if offline
-    .alert-box.warning(style="text-align: center;") Offline forms are experimental. Use only for testing. 
+    .alert-box.info(style="text-align: center;") Offline-enabled forms are experimental. Use only for testing. 
       a(href="https://github.com/kobotoolbox/enketo-express/issues") Report new bugs
       | .
   .main
@@ -25,4 +25,4 @@ block content
       include component/_form-footer
   if offline
     include component/_side-slider
-  include component/_dialogs
+  include component/_feedback-bar
