@@ -80,7 +80,7 @@
                 return options.callback( $vexContent.data().vex.value );
             };
             $vexContent = vex.open( options );
-            dialog.addAutoCloseTimer( options );
+            dialog.addAutoCloseTimer( $vexContent, options );
             if ( options.focusFirstInput ) {
                 $vexContent.find( 'button[type="submit"], button[type="button"], input[type="submit"], input[type="button"], textarea, input[type="date"], input[type="datetime"], input[type="datetime-local"], input[type="email"], input[type="month"], input[type="number"], input[type="password"], input[type="search"], input[type="tel"], input[type="text"], input[type="time"], input[type="url"], input[type="week"]' ).first().focus();
             }
@@ -148,7 +148,7 @@
             } );
             return $buttons;
         };
-        dialog.addAutoCloseTimer = function( options ) {
+        dialog.addAutoCloseTimer = function( $vexContent, options ) {
             if ( options.autoClose && typeof options.autoClose === 'number' ) {
                 var timeLeft = options.autoClose,
                     $timer = $vexContent.find( '.vex-auto-close-timer' ).text( timeLeft );
