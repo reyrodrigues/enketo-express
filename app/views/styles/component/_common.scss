@@ -1,4 +1,3 @@
-@import "foundation";
 @import "iframe";
 @import "modal";
 @import "alert";
@@ -13,9 +12,10 @@ html {
 
 body {
     background: $body-bg no-repeat;
-    font-size: $base-font-size;
-    line-height: $base-line-height;
+    font-size: $font-size-base;
+    line-height: $line-height-base;
     overflow-x: hidden;
+    margin: 0;
 }
 
 .main {

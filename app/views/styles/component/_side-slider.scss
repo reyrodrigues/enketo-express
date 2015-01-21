@@ -77,7 +77,7 @@ $slider-width: 240px;
         }
     }
     .slider-overlay {
-       @include reveal-bg();
+        @extend .vex-overlay;
        z-index: 999;
        display: block;
     }
