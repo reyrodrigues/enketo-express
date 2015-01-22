@@ -52,7 +52,7 @@
     .first-page, .last-page {
         width: 50%;
         opacity: 0.7;
-        @include border-radius(0);
+        border-radius: 0 !important;
         display: none;
         padding: 9px;
         margin-bottom: 0;
