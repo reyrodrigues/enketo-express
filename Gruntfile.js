@@ -152,15 +152,6 @@ module.exports = function( grunt ) {
                     src: [ '*' ],
                     dest: 'public/lib/enketo-core'
                 } ]
-            },
-            foundation: {
-                files: [ {
-                    overwrite: false,
-                    expand: true,
-                    cwd: 'app/lib/martijnr-foundation',
-                    src: [ '*' ],
-                    dest: 'public/lib/martijnr-foundation'
-                } ]
             }
         },
         env: {
