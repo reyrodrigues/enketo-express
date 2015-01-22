@@ -19,28 +19,15 @@ require.config( {
         "jquery.touchswipe": "../../../lib/enketo-core/lib/jquery-touchswipe/jquery.touchSwipe",
         "leaflet": "../../../lib/enketo-core/lib/leaflet/leaflet",
         "file-manager": "../../../lib/enketo-core/src/js/file-manager",
-        "foundation.core": "../../../lib/martijnr-foundation/js/foundation/foundation",
-        "foundation.reveal": "../../../lib/martijnr-foundation/js/foundation/foundation.reveal",
         "q": "../../../lib/bower-components/q/q",
         "i18next": "../../../lib/bower-components/i18next/i18next.amd",
         "print": "../../../lib/enketo-core/src/js/print",
-        "db": "../../../lib/db.js/src/db"
+        "db": "../../../lib/db.js/src/db",
+        "vex": "../../../lib/bower-components/vex/js/vex",
     },
     shim: {
         "xpath": {
             exports: "XPathJS"
-        },
-        'foundation.core': {
-            deps: [
-                'jquery',
-                'Modernizr'
-            ],
-            exports: 'Foundation'
-        },
-        'foundation.reveal': {
-            deps: [
-                'foundation.core'
-            ]
         },
         "enketo-widget/date/bootstrap3-datepicker/js/bootstrap-datepicker": {
             deps: [ "jquery" ],
