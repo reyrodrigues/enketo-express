@@ -157,7 +157,7 @@
                     $timer.text( timeLeft );
                 }, 1000 );
                 timer = window.setTimeout( function() {
-                    dialog.close();
+                    vex.close( $vexContent.data().vex.id );
                 }, options.autoClose * 1000 );
             }
         };
