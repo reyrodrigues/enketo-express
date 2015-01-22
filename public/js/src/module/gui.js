@@ -80,7 +80,7 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         } );
 
         $( '.form-header__button--print' ).on( 'click', function() {
-            printForm( confirm );
+            printForm( promptPrintSettings );
         } );
 
         $( '.side-slider__toggle' ).on( 'click', function() {
@@ -214,7 +214,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
      */
     function feedback( message, duration ) {
         if ( !Modernizr.touch ) {
-            console.log( 'showing bar' );
             feedbackBar.show( message, duration );
         } else {
             alert( message, t( 'feedback.header' ), 'info', duration );
@@ -240,7 +239,7 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
                 YES: {
                     text: t( 'alert.default.button' ),
                     type: 'submit',
-                    className: 'btn btn-primary'
+                    className: 'btn btn-primary small'
                 }
             },
             autoClose: duration,
@@ -271,11 +270,11 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             buttons: [ {
                 text: choices.posButton || t( 'confirm.default.posButton' ),
                 type: 'submit',
-                className: 'btn btn-primary'
+                className: 'btn btn-primary small'
             }, {
                 text: choices.negButton || t( 'confirm.default.negButton' ),
                 type: 'button',
-                className: 'btn btn-default'
+                className: 'btn btn-default small'
             } ],
             callback: function( value ) {
                 console.log( 'closing dialog with value:', value );
@@ -304,11 +303,11 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             buttons: [ {
                 text: choices.posButton || t( 'confirm.default.posButton' ),
                 type: 'submit',
-                className: 'btn btn-primary'
+                className: 'btn btn-primary small'
             }, {
                 text: choices.negButton || t( 'confirm.default.negButton' ),
                 type: 'button',
-                className: 'btn btn-default'
+                className: 'btn btn-default small'
             } ],
             input: inputs,
             callback: function( value ) {
@@ -375,31 +374,23 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         );
     }
 
-    function promptPrintSettings( actions ) {
+    /**
+     * Prompts for print settings
+     *
+     * @param  {*} ignore This is here for historic reasons but is ignored
+     * @param  {{posAction: Function, negAction: Function, afterAction: Function}} actions Object with actions
+     */
+    function promptPrintSettings( ignore, actions ) {
         var texts = {
-                //dialog: 'print',
                 heading: t( 'confirm.print.heading' ),
                 msg: t( 'confirm.print.msg' )
             },
             options = {
-                posButton: 'Prepare',
-                posAction: function( values ) {
-                    console.debug( 'values', values );
-                    fixGrid( values );
-                    $( window ).one( 'printviewready', function() {
-                        window.print();
-                    } );
-                },
-                negButton: 'Close',
-                negAction: function() {
-                    console.debug( 'values', values );
-                    styleReset();
-                },
-                afterAction: function() {
-                    setTimeout( function() {
-                        styleReset();
-                    }, 1500 );
-                }
+                posButton: t( 'confirm.print.posButton' ), //Prepare',
+                posAction: actions.posAction,
+                negButton: t( 'alert.default.button' ),
+                negAction: actions.negAction,
+                afterAction: actions.afterAction
             },
             inputs = '<fieldset><legend>' + t( 'confirm.print.psize' ) + '</legend>' +
             '<label><input name="format" type="radio" value="A4" required checked/><span>' + t( 'confirm.print.a4' ) + '</span></label>' +
@@ -501,7 +492,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         fillHeight: fillHeight,
         confirmLogin: confirmLogin,
         alertLoadErrors: alertLoadErrors,
-        alertCacheUnsupported: alertCacheUnsupported,
-        promptPrintSettings: promptPrintSettings
+        alertCacheUnsupported: alertCacheUnsupported
     };
 } );
