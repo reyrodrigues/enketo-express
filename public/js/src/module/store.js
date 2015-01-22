@@ -108,8 +108,9 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             .then( _setBlobStorageEncoding )
             .catch( function( e ) {
                 // make error more useful and throw it further down the line
-                var error = new Error( 'Browser storage is required but not available, corrupted, or not writeable. ' +
-                    'If you are in "private browsing" mode please switch to regular mode, otherwise switch to another browser. (error: ' + e.message + ')' );
+                var error = new Error( t( 'store.error.notavailable', {
+                    error: e.message
+                } ) );
                 error.status = 500;
                 throw error;
             } );
@@ -354,8 +355,11 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}
          */
         getAll: function( enketoId, finalOnly ) {
+            var deferred = Q.defer();
+
             if ( !enketoId ) {
-                throw new Error( 'No Enketo ID provided' );
+                deferred.reject( new Error( 'No Enketo ID provided' ) );
+                return deferred.promise;
             }
             return server.records.query( 'enketoId' )
                 .only( enketoId )
@@ -380,16 +384,14 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
          * @return {Promise}        [description]
          */
         set: function( record ) {
-            var fileKeys;
+            var fileKeys,
+                deferred = Q.defer();
 
-            console.debug( 'attempting to store new record' );
-
-            //var deferred = Q.defer();
-            // deferred.reject( new Error( 'record setting error' ) );
-            //return deferred.promise;
+            console.debug( 'attempting to store new record', record );
 
             if ( !record.instanceId || !record.enketoId || !record.name || !record.xml ) {
-                throw new Error( 'Record not complete' );
+                deferred.reject( new Error( 'Record not complete' ) );
+                return deferred.promise;
             }
 
             record.files = record.files || [];
@@ -417,6 +419,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                     updated: new Date().getTime(),
                     draft: record.draft
                 } )
+                .then( _incrementRecordCounter )
                 .then( function() {
                     var tasks = [];
                     console.debug( 'added the record, now checking files' );
@@ -673,6 +676,25 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             deferred.reject( new Error( 'Unknown table or issing id or key.' ) );
         }
 
+    }
+
+    function _incrementRecordCounter() {
+        console.debug( 'incrementing record-counter' );
+        return propertyStore.get( 'record-counter' )
+            .then( function( count ) {
+                console.debug( 'current record counter value', count );
+                if ( count && count.value ) {
+                    count.value = count.value;
+                } else {
+                    count = {
+                        value: 1
+                    };
+                }
+                return propertyStore.update( {
+                    name: 'record-counter',
+                    value: count.value + 1
+                } );
+            } );
     }
 
     /**

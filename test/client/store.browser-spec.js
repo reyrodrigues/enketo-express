@@ -483,36 +483,40 @@ define( [ 'store' ], function( store ) {
                     .then( done, done );
             } );
 
-            it( 'fails if the record has no "instanceId" property', function() {
+            it( 'fails if the record has no "instanceId" property', function( done ) {
                 delete recordA.instanceId;
-                // note: the throw assert works here because the error is thrown before in sync part of function
-                expect( function() {
-                    store.record.set( recordA );
-                } ).to.throw( /not complete/ );
+                store.record.set( recordA )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'not complete' );
+                    } )
+                    .then( done, done );
             } );
 
-            it( 'fails if the record has no "enketoId" property', function() {
+            it( 'fails if the record has no "enketoId" property', function( done ) {
                 delete recordA.enketoId;
-                // note: the throw assert works here because the error is thrown before in sync part of function
-                expect( function() {
-                    store.record.set( recordA );
-                } ).to.throw( /not complete/ );
+                store.record.set( recordA )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'not complete' );
+                    } )
+                    .then( done, done );
             } );
 
-            it( 'fails if the record has no "name" property', function() {
+            it( 'fails if the record has no "name" property', function( done ) {
                 delete recordA.name;
-                // note: the throw assert works here because the error is thrown before in sync part of function
-                expect( function() {
-                    store.record.set( recordA );
-                } ).to.throw( /not complete/ );
+                store.record.set( recordA )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'not complete' );
+                    } )
+                    .then( done, done );
             } );
 
-            it( 'fails if the record has no "xml" property', function() {
+            it( 'fails if the record has no "xml" property', function( done ) {
                 delete recordA.xml;
-                // note: the throw assert works here because the error is thrown before in sync part of function
-                expect( function() {
-                    store.record.set( recordA );
-                } ).to.throw( /not complete/ );
+                store.record.set( recordA )
+                    .catch( function( e ) {
+                        expect( e.message ).to.contain( 'not complete' );
+                    } )
+                    .then( done, done );
             } );
 
             it( 'succeeds if the record has the required properties and doesn\'t exist already', function( done ) {
@@ -562,8 +566,41 @@ define( [ 'store' ], function( store ) {
                     .catch( function( e ) {
                         // Firefox failure? => https://github.com/aaronpowell/db.js/issues/98
                         expect( true ).to.equal( true );
-                        done();
-                    } );
+                    } )
+                    .then( done, done );
+            } );
+
+            it( 'fails if a record with that instanceName already exists in the db', function( done ) {
+                recordA.instanceId = "anotherid";
+                store.record.set( recordA )
+                    .then( function() {
+                        return store.record.set( recordA );
+                    } )
+                    .catch( function( e ) {
+                        // Firefox failure? => https://github.com/aaronpowell/db.js/issues/98
+                        expect( true ).to.equal( true );
+                    } )
+                    .then( done, done );
+            } );
+
+            it( 'increments the record-counter value when it succeeds', function( done ) {
+                var counterValue;
+                store.record.set( recordA )
+                    .then( function() {
+                        return store.property.get( 'record-counter' );
+                    } )
+                    .then( function( obj ) {
+                        counterValue = obj.value;
+                        expect( counterValue ).to.be.a( 'number' );
+                        return store.record.set( recordB );
+                    } )
+                    .then( function() {
+                        return store.property.get( 'record-counter' );
+                    } )
+                    .then( function( obj ) {
+                        expect( obj.value ).to.equal( counterValue + 1 );
+                    } )
+                    .then( done, done );
             } );
 
         } );
