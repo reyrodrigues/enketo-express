@@ -18,7 +18,7 @@
  * Deals with browser storage
  */
 
-define( [ 'store', 'q' ], function( store, Q ) {
+define( [ 'store', 'q', 'settings' ], function( store, Q, settings ) {
     "use strict";
 
     // DEBUG
@@ -27,29 +27,33 @@ define( [ 'store', 'q' ], function( store, Q ) {
     function init() {
         // _setUploadIntervals();
         // _setEventHandlers();
+        store.init()
+            .then( _updateRecordList );
     }
 
     function get( instanceId ) {
-        return store.getRecord( instanceId );
+        return store.record.get( instanceId );
     }
 
     function set( record ) {
-        console.log( 'setting record' );
-        return store.setRecord( record );
+        return store.record.set( record )
+            .then( _updateRecordList );
     }
 
     function update( record ) {
-        return store.updateRecord( record );
+        return store.record.update( record )
+            .then( _updateRecordList );
     }
 
     function remove( record ) {
-        return store.removeRecord( record );
+        return store.record.remove( record )
+            .then( _updateRecordList );
     }
 
     function getCounterValue() {
-        return store.getProperty( 'record-counter' )
+        return store.property.get( 'record-counter' )
             .then( function( counter ) {
-                return isNaN( counter ) ? 1 : counter + 1;
+                return !counter || isNaN( counter.value ) ? 1 : counter.value + 1;
             } );
     }
 
@@ -58,7 +62,43 @@ define( [ 'store', 'q' ], function( store, Q ) {
     }
 
     function _updateRecordList() {
+        var $newRecordList, $li, //name, draft, i, $li,
+            $exportButton = $( '.record-list__button-bar__button.export' ).prop( 'disabled', true ),
+            $uploadButton = $( '.record-list__button-bar__button.upload' ).prop( 'disabled', true ),
+            $recordList = $( '.record-list__records' ).empty(),
+            $queueNumber = $( '.queue-length' ),
+            deferred = Q.defer();
 
+        // TODO: an error is swallowed here, e.g remove settings.enketoId below
+        return store.record.getAll( settings.enketoId )
+            .then( function( records ) {
+                records = records || [];
+                // update queue number
+                $queueNumber.text( records.length );
+                // add 'no records' message
+                if ( records.length === 0 ) {
+                    $recordList.append( '<li class="record-list__records--none">' + t( 'record-list.norecords' ) + '</li>' )
+                    deferred.resolve();
+                    return deferred.promise;
+                }
+                // enable export button
+                $exportButton.prop( 'disabled', false );
+                $newRecordList = $recordList.clone();
+                // add records
+                records.forEach( function( record ) {
+                    // if there is at least one record not marked as draft
+                    if ( !record.draft ) {
+                        $uploadButton.prop( 'disabled', false );
+                    }
+                    $li = $( '<li class="record-list__records__record" />' )
+                        .text( record.name )
+                        .attr( 'id', record.instanceId )
+                        .attr( 'data-draft', !!record.draft )
+                        .appendTo( $newRecordList );
+                } );
+                $recordList.replaceWith( $newRecordList );
+            } )
+        ;
     }
 
     /**
@@ -78,6 +118,8 @@ define( [ 'store', 'q' ], function( store, Q ) {
                 return deferred.promise;
             } );
     }
+
+    init();
 
     return {
         get: get,
