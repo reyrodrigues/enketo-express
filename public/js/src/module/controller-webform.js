@@ -37,7 +37,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
 
             // DEBUG
             //window.form = form;
-            window.gui = gui;
+            //window.gui = gui;
             //window.store = store;
 
             //initialize form and check for load errors
@@ -157,7 +157,6 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
         function _confirmRecordName( recordName, errorMsg ) {
             var deferred = Q.defer(),
                 texts = {
-                    dialog: 'save',
                     msg: '',
                     heading: t( 'formfooter.savedraft.label' ),
                     errorMsg: errorMsg
@@ -169,10 +168,8 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                         var newName = values[ 'record-name' ],
                             oldName = form.getRecordName();
 
-                        console.log( 'new name', newName );
                         // if the record is new or was loaded from storage and saved under the same name
                         if ( !oldName || oldName === newName ) {
-                            //_saveRecord( values[ 'record-name' ], true );
                             deferred.resolve( newName, true );
                         } else {
                             _confirmRecordRename( oldName, newName )
@@ -182,11 +179,12 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                         }
                     },
                     negAction: deferred.reject
-                };
+                },
+                inputs = '<label><span>' + t( 'confirm.save.name' ) + '</span>' +
+                '<span class="or-hint active">' + t( 'confirm.save.hint' ) + '</span>' +
+                '<input name="record-name" type="text" value="' + recordName + '"required />' + '</label>';
 
-            gui.confirm( texts, choices, {
-                'record-name': recordName
-            } );
+            gui.prompt( texts, choices, inputs );
 
             return deferred.promise;
         }
@@ -194,23 +192,21 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
         function _confirmRecordRename( oldName, newName ) {
             var deferred = Q.defer();
 
-            gui.confirm( {
-                msg: t( 'confirm.save.renamemsg', {
-                    currentName: '"' + form.getRecordName() + '"',
-                    newName: '"' + values[ 'record-name' ] + '"'
-                } )
-            }, {
-                posAction: deferred.resolve,
-                //_saveRecord( values[ 'record-name' ], true );
-                //deferred.resolve( );
-                //}
-                negAction: deferred.reject
-            } );
+            gui.prompt( {
+                    msg: t( 'confirm.save.renamemsg', {
+                        currentName: '"' + oldName + '"',
+                        newName: '"' + newName + '"'
+                    } )
+                }, {
+                    posAction: deferred.resolve,
+                    negAction: deferred.reject
+                }, '<label><span>' + t( 'confirm.save.name' ) + '</span><span>' + t( 'confirm.save.hint' ) + '</span>' +
+                '<input name="record-name" type="text" required /></label>' );
             return deferred.promise;
         }
 
         function _saveRecord( recordName, confirmed, errorMsg ) {
-            var texts, choices, record, saveResult, saveMethod,
+            var record, saveMethod,
                 draft = getDraftStatus();
 
             console.log( 'saveRecord called with recordname:', recordName, 'confirmed:', confirmed, "error:", errorMsg, 'draft:', draft );
@@ -243,9 +239,10 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             // build the record object
             record = {
                 'draft': draft,
-                'data': form.getDataStr( true, true ),
+                'xml': form.getDataStr( true, true ),
                 'name': recordName,
                 'instanceId': form.getInstanceID(),
+                'enketoId': settings.enketoId,
                 'files': null // TODO
             };
 
@@ -270,10 +267,13 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     }
                 } )
                 .catch( function( error ) {
-                    console.error( 'save error', error );
-                    _saveRecord( undefined, false, t( 'confirm.save.error', {
-                        error: error.message || t( 'error.unknown' )
-                    } ) );
+                    errorMsg = error.message;
+                    if ( !errorMsg && error.target && error.target.error && error.target.error.name && error.target.error.name.toLowerCase() === 'constrainterror' ) {
+                        errorMsg = t( 'confirm.save.existingerror' );
+                    } else {
+                        errorMsg = t( 'confirm.save.unkownerror' );
+                    }
+                    _saveRecord( undefined, false, errorMsg );
                 } );
 
             // gui.alert( 'Error trying to save data locally (message: ' + saveResult + ')' );
