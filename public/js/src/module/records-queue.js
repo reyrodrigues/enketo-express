@@ -119,9 +119,8 @@ define( [ 'store', 'q', 'settings' ], function( store, Q, settings ) {
             } );
     }
 
-    init();
-
     return {
+        init: init,
         get: get,
         set: set,
         getCounterValue: getCounterValue,

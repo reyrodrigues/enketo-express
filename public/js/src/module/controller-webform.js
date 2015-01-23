@@ -43,6 +43,10 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             //initialize form and check for load errors
             loadErrors = form.init();
 
+            if (settings.offline){
+                records.init();
+            }
+
             if ( form.getEncryptionKey() ) {
                 loadErrors.unshift( '<strong>' + t( 'error.encryptionnotsupported' ) + '</strong>' );
             }
