@@ -426,12 +426,11 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                     record.files.forEach( function( file ) {
                         tasks.push( recordStore.file.update( record.instanceId, file ) );
                     } );
-
-                    return Q.all( tasks )
-                        .then( function() {
-                            console.debug( 'all save tasks completed!' );
-                            return record;
-                        } );
+                    return Q.all( tasks );
+                } )
+                .then( function() {
+                    console.debug( 'all save tasks completed!' );
+                    return record;
                 } );
         },
         /**
@@ -670,12 +669,12 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                 error = new Error( 'DataError. File not complete or id not provided.' );
                 error.name = 'DataError';
                 deferred.reject( error );
-                return deferred.promise;
+                //return deferred.promise;
             }
         } else {
             deferred.reject( new Error( 'Unknown table or issing id or key.' ) );
         }
-
+        return deferred.promise;
     }
 
     function _incrementRecordCounter() {

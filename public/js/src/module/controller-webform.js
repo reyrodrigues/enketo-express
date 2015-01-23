@@ -43,7 +43,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             //initialize form and check for load errors
             loadErrors = form.init();
 
-            if (settings.offline){
+            if ( settings.offline ) {
                 records.init();
             }
 
@@ -247,7 +247,12 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 'name': recordName,
                 'instanceId': form.getInstanceID(),
                 'enketoId': settings.enketoId,
-                'files': null // TODO
+                'files': fileManager.getCurrentFiles().map( function( file ) {
+                    return {
+                        name: file.name,
+                        item: file
+                    };
+                } )
             };
 
             // determine the save method
@@ -274,7 +279,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     errorMsg = error.message;
                     if ( !errorMsg && error.target && error.target.error && error.target.error.name && error.target.error.name.toLowerCase() === 'constrainterror' ) {
                         errorMsg = t( 'confirm.save.existingerror' );
-                    } else {
+                    } else if ( !errorMsg ) {
                         errorMsg = t( 'confirm.save.unkownerror' );
                     }
                     _saveRecord( undefined, false, errorMsg );
