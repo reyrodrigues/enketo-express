@@ -18,7 +18,7 @@
  * Deals with browser storage
  */
 
-define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings, t) {
+define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings, t ) {
     "use strict";
 
     // DEBUG
@@ -77,7 +77,7 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
                 $queueNumber.text( records.length );
                 // add 'no records' message
                 if ( records.length === 0 ) {
-                    $recordList.append( '<li class="record-list__records--none">' + t( 'record-list.norecords' ) + '</li>' )
+                    $recordList.append( '<li class="record-list__records--none">' + t( 'record-list.norecords' ) + '</li>' );
                     deferred.resolve();
                     return deferred.promise;
                 }
