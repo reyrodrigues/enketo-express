@@ -154,7 +154,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
         function _getRecordName() {
             return records.getCounterValue()
                 .then( function( counter ) {
-                    return form.getRecordName() || form.getSurveyName() + ' - ' + counter;
+                    return form.getInstanceName() || form.getRecordName() || form.getSurveyName() + ' - ' + counter;
                 } );
         }
 
@@ -193,7 +193,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             return deferred.promise;
         }
 
-        function _confirmRecordRename( oldName, newName ) {
+        function _confirmRecordRename( oldName, newName, errMsg ) {
             var deferred = Q.defer();
 
             gui.prompt( {
@@ -262,10 +262,8 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             records[ saveMethod ]( record )
                 .then( function() {
                     console.log( 'XML save successful!' );
-                    // save any media files to the media storage but let fail quietly
-                    // fileManager.saveCurrentFiles().fin( function() {
+
                     resetForm( true );
-                    // $form.trigger( 'save', JSON.stringify( store.getRecordList() ) );
 
                     if ( draft ) {
                         gui.feedback( 'Record stored as draft.', 3 );
@@ -282,10 +280,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     } else if ( !errorMsg ) {
                         errorMsg = t( 'confirm.save.unkownerror' );
                     }
-                    _saveRecord( undefined, false, errorMsg );
+                    //_saveRecord( undefined, false, errorMsg );
+                    gui.alert( errorMsg, 'Save Error' );
                 } );
-
-            // gui.alert( 'Error trying to save data locally (message: ' + saveResult + ')' );
         }
 
 
