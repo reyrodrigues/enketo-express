@@ -18,7 +18,7 @@
  * Deals with browser storage
  */
 
-define( [ 'store', 'q', 'settings' ], function( store, Q, settings ) {
+define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings, t) {
     "use strict";
 
     // DEBUG
@@ -66,7 +66,7 @@ define( [ 'store', 'q', 'settings' ], function( store, Q, settings ) {
             $exportButton = $( '.record-list__button-bar__button.export' ).prop( 'disabled', true ),
             $uploadButton = $( '.record-list__button-bar__button.upload' ).prop( 'disabled', true ),
             $recordList = $( '.record-list__records' ).empty(),
-            $queueNumber = $( '.queue-length' ),
+            $queueNumber = $( '.offline-enabled__queue-length' ),
             deferred = Q.defer();
 
         // TODO: an error is swallowed here, e.g remove settings.enketoId below

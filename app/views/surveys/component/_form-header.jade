@@ -1,5 +1,8 @@
 header.form-header
-  .offline-enabled
+  if (offline)
+    .offline-enabled
+      .offline-enabled__icon.not-enabled(title="This form is able to launch offline")
+      .offline-enabled__queue-length.side-slider-toggle(title="Records Queued")
   .form-progress
   a.branding(href="#{logo.href || '#'}")
     .logo-wrapper

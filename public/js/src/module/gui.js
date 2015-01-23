@@ -83,7 +83,7 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             printForm( promptPrintSettings );
         } );
 
-        $( '.side-slider__toggle' ).on( 'click', function() {
+        $( '.side-slider__toggle, .offline-enabled__queue-length' ).on( 'click', function() {
             var $body = $( 'body' );
             window.scrollTo( 0, 0 );
             $body.toggleClass( 'show-side-slider' );
