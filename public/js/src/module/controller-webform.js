@@ -152,9 +152,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
         }
 
         function _getRecordName() {
-            return records.getCounterValue()
-                .then( function( counter ) {
-                    return form.getInstanceName() || form.getRecordName() || form.getSurveyName() + ' - ' + counter;
+            return records.getCounterValue( settings.enketoId )
+                .then( function( count ) {
+                    return form.getInstanceName() || form.getRecordName() || form.getSurveyName() + ' - ' + count;
                 } );
         }
 

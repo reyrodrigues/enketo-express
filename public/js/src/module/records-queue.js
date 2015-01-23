@@ -50,10 +50,10 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
             .then( _updateRecordList );
     }
 
-    function getCounterValue() {
-        return store.property.get( 'record-counter' )
-            .then( function( counter ) {
-                return !counter || isNaN( counter.value ) ? 1 : counter.value + 1;
+    function getCounterValue( enketoId ) {
+        return store.property.getSurveyStats( enketoId )
+            .then( function( stats ) {
+                return !stats || isNaN( stats.recordCount ) ? 1 : stats.recordCount + 1;
             } );
     }
 
@@ -123,10 +123,10 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
         init: init,
         get: get,
         set: set,
-        getCounterValue: getCounterValue,
         update: update,
         remove: remove,
-        flush: flush
+        flush: flush,
+        getCounterValue: getCounterValue,
     };
 
 } );

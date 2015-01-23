@@ -584,21 +584,21 @@ define( [ 'store' ], function( store ) {
             } );
 
             it( 'increments the record-counter value when it succeeds', function( done ) {
-                var counterValue;
+                var initialCount;
                 store.record.set( recordA )
                     .then( function() {
-                        return store.property.get( 'record-counter' );
+                        return store.property.getSurveyStats( recordA.enketoId );
                     } )
-                    .then( function( obj ) {
-                        counterValue = obj.value;
-                        expect( counterValue ).to.be.a( 'number' );
+                    .then( function( stats ) {
+                        initialCount = stats.recordCount;
+                        expect( initialCount ).to.be.a( 'number' );
                         return store.record.set( recordB );
                     } )
                     .then( function() {
-                        return store.property.get( 'record-counter' );
+                        return store.property.getSurveyStats( recordA.enketoId );
                     } )
-                    .then( function( obj ) {
-                        expect( obj.value ).to.equal( counterValue + 1 );
+                    .then( function( stats ) {
+                        expect( stats.recordCount ).to.equal( initialCount + 1 );
                     } )
                     .then( done, done );
             } );

@@ -165,6 +165,22 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
         removeAll: function() {
             return _flushTable( 'properties' );
         },
+        getSurveyStats: function( id ) {
+            return server.properties.get( id + ':stats' );
+        },
+        incrementRecordCount: function( record ) {
+            return propertyStore.getSurveyStats( record.enketoId )
+                .then( function( stats ) {
+                    if ( !stats || !stats.recordCount ) {
+                        stats = {
+                            name: record.enketoId + ':stats',
+                            recordCount: 0
+                        };
+                    }
+                    ++stats.recordCount;
+                    return propertyStore.update( stats );
+                } );
+        }
     };
 
     surveyStore = {
@@ -419,7 +435,8 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                     updated: new Date().getTime(),
                     draft: record.draft
                 } )
-                .then( _incrementRecordCounter )
+                .then( _firstItemOnly )
+                .then( propertyStore.incrementRecordCount )
                 .then( function() {
                     var tasks = [];
                     console.debug( 'added the record, now checking files' );
@@ -675,25 +692,6 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
             deferred.reject( new Error( 'Unknown table or issing id or key.' ) );
         }
         return deferred.promise;
-    }
-
-    function _incrementRecordCounter() {
-        console.debug( 'incrementing record-counter' );
-        return propertyStore.get( 'record-counter' )
-            .then( function( count ) {
-                console.debug( 'current record counter value', count );
-                if ( count && count.value ) {
-                    count.value = count.value;
-                } else {
-                    count = {
-                        value: 1
-                    };
-                }
-                return propertyStore.update( {
-                    name: 'record-counter',
-                    value: count.value + 1
-                } );
-            } );
     }
 
     /**
