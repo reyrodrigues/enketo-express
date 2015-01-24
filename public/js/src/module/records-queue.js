@@ -21,12 +21,19 @@
 define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings, t ) {
     "use strict";
 
+    var $exportButton, $uploadButton, $recordList, $queueNumber;
+
     // DEBUG
     window.store = store;
 
     function init() {
         // _setUploadIntervals();
         // _setEventHandlers();
+
+        $exportButton = $( '.record-list__button-bar__button.export' );
+        $uploadButton = $( '.record-list__button-bar__button.upload' );
+        $queueNumber = $( '.offline-enabled__queue-length' );
+
         store.init()
             .then( _updateRecordList );
     }
@@ -57,17 +64,24 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
             } );
     }
 
+    function setActive( instanceId ) {
+        $( '.record-list__records' )
+            .find( '.active' ).removeClass( 'active' )
+            .addBack().find( '[data-id="' + instanceId + '"]' ).addClass( 'active' );
+    }
+
     function _setUploadIntervals() {
 
     }
 
     function _updateRecordList() {
-        var $newRecordList, $li, //name, draft, i, $li,
-            $exportButton = $( '.record-list__button-bar__button.export' ).prop( 'disabled', true ),
-            $uploadButton = $( '.record-list__button-bar__button.upload' ).prop( 'disabled', true ),
-            $recordList = $( '.record-list__records' ).empty(),
-            $queueNumber = $( '.offline-enabled__queue-length' ),
+        var $newRecordList, $li,
             deferred = Q.defer();
+
+        // reset the list
+        $exportButton.prop( 'disabled', true );
+        $uploadButton.prop( 'disabled', true );
+        $recordList = $( '.record-list__records' ).empty();
 
         // TODO: an error is swallowed here, e.g remove settings.enketoId below
         return store.record.getAll( settings.enketoId )
@@ -92,7 +106,7 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
                     }
                     $li = $( '<li class="record-list__records__record" />' )
                         .text( record.name )
-                        .attr( 'id', record.instanceId )
+                        .attr( 'data-id', record.instanceId )
                         .attr( 'data-draft', !!record.draft )
                         .appendTo( $newRecordList );
                 } );
@@ -127,6 +141,7 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
         remove: remove,
         flush: flush,
         getCounterValue: getCounterValue,
+        setActive: setActive,
     };
 
 } );

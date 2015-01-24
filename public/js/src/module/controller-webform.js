@@ -36,9 +36,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             form = new Form( formSelector, defaultModelStr, instanceStrToEdit );
 
             // DEBUG
-            //window.form = form;
-            //window.gui = gui;
-            //window.store = store;
+            // window.form = form;
+            // window.gui = gui;
+            // window.store = store;
 
             //initialize form and check for load errors
             loadErrors = form.init();
@@ -60,33 +60,77 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             $form = form.getView().$;
             $formprogress = $( '.form-progress' );
 
-            setEventHandlers();
+            _setEventHandlers();
         }
 
         /**
          * Controller function to reset to a blank form. Checks whether all changes have been saved first
          * @param  {boolean=} confirmed Whether unsaved changes can be discarded and lost forever
          */
-        function resetForm( confirmed ) {
+        function _resetForm( confirmed ) {
             var message, choices;
 
             if ( !confirmed && form.getEditStatus() ) {
                 message = t( 'confirm.save.msg' );
                 choices = {
                     posAction: function() {
-                        resetForm( true );
+                        _resetForm( true );
                     }
                 };
                 gui.confirm( message, choices );
             } else {
-                setDraftStatus( false );
-                //updateActiveRecord( null );
+                _setDraftStatus( false );
                 form.resetView();
-                form = new Form( 'form.or:eq(0)', defaultModelStr );
+                form = new Form( formSelector, defaultModelStr );
                 form.init();
                 $form = form.getView().$;
-                $formprogress = $( '.form-progress' );
-                //$( 'button#delete-form' ).button( 'disable' );
+            }
+        }
+
+        /**
+         * Loads a record from storage
+         *
+         * @param  {string} instanceId [description]
+         * @param  {=boolean?} confirmed  [description]
+         */
+        function _loadRecord( instanceId, confirmed ) {
+            var record, texts, choices, loadErrors;
+
+            if ( !confirmed && form.getEditStatus() ) {
+                texts = {
+                    msg: t( 'confirm.discardcurrent.msg' ),
+                    heading: t( 'confirm.discardcurrent.heading' )
+                };
+                choices = {
+                    posButton: t( 'confirm.discardcurrent.posButton' ),
+                    posAction: function() {
+                        _loadRecord( instanceId, true );
+                    }
+                };
+                gui.confirm( texts, choices );
+            } else {
+                record = store.record.get( instanceId )
+                    .then( function( record ) {
+                        if ( !record || !record.xml ) {
+                            return gui.alert( t( 'alert.recordnotfound.msg' ) );
+                        }
+                        form.resetView();
+                        form = new Form( formSelector, defaultModelStr, record.xml, true );
+                        loadErrors = form.init();
+                        _setDraftStatus( true );
+                        form.setRecordName( record.name );
+                        records.setActive( record.instanceId );
+
+                        if ( loadErrors.length > 0 ) {
+                            console.error( 'load errors:', loadErrors );
+                            gui.showLoadErrors( loadErrors, t( 'alert.loaderror.editadvice' ) );
+                        } else {
+                            gui.feedback( t( 'alert.recordloadsuccess.msg', {
+                                recordName: record.name
+                            } ), 2 );
+                        }
+                        $( '.side-slider__toggle.close' ).click();
+                    } );
             }
         }
 
@@ -95,7 +139,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
          * This function does not save the record in localStorage
          * and is not used in offline-capable views.
          */
-        function submitRecord() {
+        function _submitRecord() {
             var name, record, saveResult, redirect, beforeMsg, callbacks, authLink;
 
             //$form.trigger( 'beforesave' );
@@ -134,7 +178,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     //also use for iframed forms
                     else {
                         gui.alert( t( 'alert.submissionsuccess.msg' ), t( 'alert.submissionsuccess.heading' ), 'success' );
-                        resetForm( true );
+                        _resetForm( true );
                     }
                 },
                 complete: function() {}
@@ -146,7 +190,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 files: fileManager.getCurrentFiles()
             };
 
-            prepareFormDataArray( record ).forEach( function( batch ) {
+            _prepareFormDataArray( record ).forEach( function( batch ) {
                 connection.uploadRecords( batch, true, callbacks );
             } );
         }
@@ -169,18 +213,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     posButton: t( 'confirm.save.posButton' ),
                     negButton: t( 'confirm.default.negButton' ),
                     posAction: function( values ) {
-                        var newName = values[ 'record-name' ],
-                            oldName = form.getRecordName();
-
-                        // if the record is new or was loaded from storage and saved under the same name
-                        if ( !oldName || oldName === newName ) {
-                            deferred.resolve( newName, true );
-                        } else {
-                            _confirmRecordRename( oldName, newName )
-                                .then( function() {
-                                    deferred.resolve( newName, true );
-                                } );
-                        }
+                        deferred.resolve( values[ 'record-name' ] );
                     },
                     negAction: deferred.reject
                 },
@@ -211,7 +244,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
 
         function _saveRecord( recordName, confirmed, errorMsg ) {
             var record, saveMethod,
-                draft = getDraftStatus();
+                draft = _getDraftStatus();
 
             console.log( 'saveRecord called with recordname:', recordName, 'confirmed:', confirmed, "error:", errorMsg, 'draft:', draft );
 
@@ -256,24 +289,25 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             };
 
             // determine the save method
-            saveMethod = form.getRecordName() === recordName ? 'update' : 'set';
+            saveMethod = form.getRecordName() ? 'update' : 'set';
 
             // save the record
             records[ saveMethod ]( record )
                 .then( function() {
                     console.log( 'XML save successful!' );
 
-                    resetForm( true );
+                    _resetForm( true );
 
                     if ( draft ) {
-                        gui.feedback( 'Record stored as draft.', 3 );
+                        gui.feedback( t( 'alert.recordsavesuccess.draftmsg' ), 3 );
                     } else {
                         // try to send the record immediately
-                        gui.feedback( 'Record queued for submission.', 3 );
+                        gui.feedback( t( 'alert.recordsavesuccess.finalmsg' ), 3 );
                         // submitOneForced( recordName, record );
                     }
                 } )
                 .catch( function( error ) {
+                    console.error( 'save error', error );
                     errorMsg = error.message;
                     if ( !errorMsg && error.target && error.target.error && error.target.error.name && error.target.error.name.toLowerCase() === 'constrainterror' ) {
                         errorMsg = t( 'confirm.save.existingerror' );
@@ -291,7 +325,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
          *
          * @param { { name: string, data: string } } record[ description ]
          */
-        function prepareFormDataArray( record ) {
+        function _prepareFormDataArray( record ) {
             var model = new FormModel( record.data ),
                 instanceID = model.getInstanceID(),
                 $fileNodes = model.$.find( '[type="file"]' ).removeAttr( 'type' ),
@@ -379,25 +413,24 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
         }
 
 
-        function setEventHandlers() {
+        function _setEventHandlers() {
 
-            $( 'button#submit-form' )
-                .click( function() {
-                    var $button = $( this );
-                    $button.btnBusyState( true );
-                    setTimeout( function() {
-                        if ( settings.offline ) {
-                            _saveRecord();
-                        } else {
-                            form.validate();
-                            submitRecord();
-                        }
-                        $button.btnBusyState( false );
-                        return false;
-                    }, 100 );
-                } );
+            $( 'button#submit-form' ).click( function() {
+                var $button = $( this );
+                $button.btnBusyState( true );
+                setTimeout( function() {
+                    if ( settings.offline ) {
+                        _saveRecord();
+                    } else {
+                        form.validate();
+                        _submitRecord();
+                    }
+                    $button.btnBusyState( false );
+                    return false;
+                }, 100 );
+            } );
 
-            $( document ).on( 'click', 'button#validate-form:not(.disabled)', function() {
+            $( 'button#validate-form:not(.disabled)' ).click( function() {
                 if ( typeof form !== 'undefined' ) {
                     var $button = $( this );
                     $button.btnBusyState( true );
@@ -414,14 +447,18 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 }
             } );
 
+            $( document ).on( 'click', '.record-list__records__record[data-draft="true"]', function() {
+                _loadRecord( $( this ).attr( 'data-id' ), false );
+            } );
+
             $( document ).on( 'progressupdate', 'form.or', function( event, status ) {
                 if ( $formprogress.length > 0 ) {
                     $formprogress.css( 'width', status + '%' );
                 }
             } );
 
-            if ( inIframe() && settings.parentWindowOrigin ) {
-                $( document ).on( 'submissionsuccess edited', postEventAsMessageToParentWindow );
+            if ( _inIframe() && settings.parentWindowOrigin ) {
+                $( document ).on( 'submissionsuccess edited', _postEventAsMessageToParentWindow );
             }
 
             $( '.form-footer [name="draft"]' ).on( 'change', function() {
@@ -430,12 +467,12 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             } ).closest( '.draft' ).toggleClass( 'hide', !settings.offline );
         }
 
-        function setDraftStatus( status ) {
+        function _setDraftStatus( status ) {
             status = status || false;
             $( '.form-footer [name="draft"]' ).prop( 'checked', status ).trigger( 'change' );
         }
 
-        function getDraftStatus() {
+        function _getDraftStatus() {
             return $( '.form-footer [name="draft"]' ).prop( 'checked' );
         }
 
@@ -443,7 +480,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
          * Determines whether the page is loaded inside an iframe
          * @return {boolean} [description]
          */
-        function inIframe() {
+        function _inIframe() {
             try {
                 return window.self !== window.top;
             } catch ( e ) {
@@ -455,7 +492,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
          * Attempts to send a message to the parent window, useful if the webform is loaded inside an iframe.
          * @param  {{type: string}} event
          */
-        function postEventAsMessageToParentWindow( event ) {
+        function _postEventAsMessageToParentWindow( event ) {
             if ( event && event.type ) {
                 try {
                     window.parent.postMessage( JSON.stringify( {

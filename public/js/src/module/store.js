@@ -18,7 +18,7 @@
  * Deals with browser storage
  */
 
-define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
+define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
     "use strict";
     var server, blobEncoding, propertyStore, recordStore, surveyStore, dump,
         databaseName = 'enketo';
@@ -485,6 +485,7 @@ define( [ 'db', 'q', 'utils' ], function( db, Q, utils ) {
                     // update the existing record
                     return server.records.update( {
                         instanceId: record.instanceId,
+                        enketoId: record.enketoId,
                         name: record.name,
                         xml: record.xml,
                         files: fileKeys,
