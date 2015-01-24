@@ -5,7 +5,7 @@
       "heading": "Alert"
     },
     "loaderror": {
-      "editadvice": "It is recommended not to use this form to edit data until this is resolved.",
+      "editadvice": "It is recommended not to edit this record until this is resolved.",
       "entryadvice": "It is recommended not to use this form for data entry until this is resolved.",
       "heading": "Loading Error",
       "msg1": "Error occured during the loading of this form.",
@@ -27,6 +27,16 @@
       "msg": "Offline application launch is not supported by your browser. You can use the survey without this feature or see options for resolving this.",
       "negButton": "Use it",
       "posButton": "Show options"
+    },
+    "recordloadsuccess": {
+      "msg": "__recordName__ has been loaded"
+    },
+    "recordnotfound": {
+      "msg": "Record could not be retrieved or contained no data."
+    },
+    "recordsavesuccess": {
+      "draftmsg": "Record stored as draft.",
+      "finalmsg": "Record queued for submission."
     },
     "submission": {
       "msg": "Submitting...",
@@ -66,6 +76,11 @@
       "negButton": "Cancel",
       "posButton": "Confirm"
     },
+    "discardcurrent": {
+      "heading": "Unsaved edits",
+      "msg": "The current form has unsaved changes. Would you like to load a record without saving changes to the form you were working on?",
+      "posButton": "Proceed without saving"
+    },
     "login": {
       "heading": "Login Required",
       "msg": [
@@ -77,23 +92,24 @@
     },
     "print": {
       "a4": "A4",
+      "heading": "Select Print Settings",
       "landscape": "Landscape",
       "letter": "Letter",
       "msg": "To prepare an optimized print, please select the print settings below",
       "orientation": "Paper Orientation",
       "portrait": "Portrait",
-      "progressheading": "Preparing...",
-      "progressmsg": "Working hard to prepare your optimized print view. Hold on!",
+      "posButton": "Prepare",
       "psize": "Paper Size",
       "reminder": "Remember to set these same print settings in the browser's print menu afterwards!"
     },
     "save": {
-      "error": "An error occurred when trying to save data. Error: __error__",
-      "hint": "This name allows you to easily find your draft record to finish it later. The record name will not be submitted to the server.",
+      "existingerror": "This record name or ID already exists.",
+      "hint": "This name allows you to easily find your draft record to finish it later.",
       "msg": "There are unsaved changes, would you like to continue without saving those?",
       "name": "Record Name",
       "posButton": "Save & Close",
-      "renamemsg": "Are you sure you want to rename __currentName__ to __newName__?"
+      "renamemsg": "Are you sure you want to rename __currentName__ to __newName__?",
+      "unkownerror": "An unknown error occurred when trying to save data."
     }
   },
   "contact": {
@@ -155,6 +171,11 @@
       "msg2": "If you are using an outdated browser, we recommend upgrading to a recent version of one of the following excellent modern browsers:"
     }
   },
+  "prompt": {
+    "default": {
+      "heading": "Enter values"
+    }
+  },
   "record-list": {
     "export": "Export",
     "msg1": "Records are stored inside your browser until they have been uploaded (even if you turn off your computer or go offline).",
@@ -162,6 +183,11 @@
     "norecords": "no records queued",
     "title": "Queue",
     "upload": "Upload"
+  },
+  "store": {
+    "error": {
+      "notavailable": "Browser storage is required but is not available, is corrupted, or is not writeable. If you are in 'private browsing' mode please switch to regular mode, otherwise switch to another browser. (error: __error__)"
+    }
   },
   "submission": {
     "http0": "Failed (Offline?).",
