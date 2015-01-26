@@ -441,7 +441,10 @@ define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
                     var tasks = [];
                     console.debug( 'added the record, now checking files' );
                     record.files.forEach( function( file ) {
-                        tasks.push( recordStore.file.update( record.instanceId, file ) );
+                        // file can be a string if it was loaded from storage and remained unchanged
+                        if ( file && file.item && file.item instanceof Blob ) {
+                            tasks.push( recordStore.file.update( record.instanceId, file ) );
+                        }
                     } );
                     return Q.all( tasks );
                 } )
@@ -496,7 +499,10 @@ define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
                 .then( function() {
                     // add new or update existing files
                     record.files.forEach( function( file ) {
-                        tasks.push( recordStore.file.update( record.instanceId, file ) );
+                        // file can be a string if it was loaded from storage and remained unchanged
+                        if ( file && file.item && file.item instanceof Blob ) {
+                            tasks.push( recordStore.file.update( record.instanceId, file ) );
+                        }
                     } );
                     // remove obsolete files
                     obsoleteFiles.forEach( function( key ) {

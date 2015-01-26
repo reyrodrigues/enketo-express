@@ -281,7 +281,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 'instanceId': form.getInstanceID(),
                 'enketoId': settings.enketoId,
                 'files': fileManager.getCurrentFiles().map( function( file ) {
-                    return {
+                    return ( typeof file === 'string' ) ? {
+                        name: file
+                    } : {
                         name: file.name,
                         item: file
                     };

@@ -737,6 +737,41 @@ define( [ 'store' ], function( store ) {
                     .then( done, done );
             } );
 
+            it( 'does not remove record files that were loaded into a draft record and were left unchanged', function( done ) {
+                var name1 = fileA.name,
+                    name2 = fileB.name;
+
+                recordA.files = [ fileA ];
+                store.record.set( recordA )
+                    .then( function( result ) {
+                        expect( result.files[ 0 ].name ).to.equal( name1 );
+                        // update files, fileA remains but is included as a {name: name1} without item (blob)
+                        recordA.files = [ {
+                            name: name1
+                        }, fileB ];
+                        return store.record.update( recordA );
+                    } )
+                    .then( function( result ) {
+                        // check update response
+                        expect( result.files.length ).to.equal( 2 );
+                        expect( result.files[ 0 ].name ).to.equal( name1 );
+                        expect( result.files[ 1 ].name ).to.equal( name2 );
+                        return store.record.get( recordA.instanceId );
+                    } )
+                    .then( function( result ) {
+                        // check get response
+                        expect( result.files.length ).to.equal( 2 );
+                        expect( result.files[ 0 ].name ).to.equal( name1 );
+                        expect( result.files[ 1 ].name ).to.equal( name2 );
+                        return store.record.file.get( recordA.instanceId, name1 );
+                    } )
+                    .then( function( result ) {
+                        // check whether obsolete file has been removed
+                        expect( result ).to.deep.equal( fileA );
+                    } )
+                    .then( done, done );
+            } );
+
         } );
 
 

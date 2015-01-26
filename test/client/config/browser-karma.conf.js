@@ -42,13 +42,10 @@ module.exports = function( config ) {
                 pattern: 'public/lib/enketo-core/lib/Modernizr.js',
                 included: false
             }, {
-                pattern: 'public/lib/martijnr-foundation/js/foundation/foundation.js',
-                included: false
-            }, {
-                pattern: 'public/lib/martijnr-foundation/js/foundation/foundation.reveal.js',
-                included: false
-            }, {
                 pattern: 'public/lib/enketo-core/lib/text/text.js',
+                included: false
+            }, {
+                pattern: 'public/lib/bower-components/i18next/i18next.amd.js',
                 included: false
             }
         ],
