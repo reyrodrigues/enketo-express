@@ -21,7 +21,7 @@
 define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormModel', 'file-manager', 'q', 'translator', 'records-queue', 'jquery' ],
     function( gui, connection, settings, Form, FormModel, fileManager, Q, t, records, $ ) {
         "use strict";
-        var form, $form, $formprogress, formSelector, defaultModelStr;
+        var form, $formprogress, formSelector, defaultModelStr;
 
         function init( selector, modelStr, instanceStrToEdit, options ) {
             var loadErrors, advice;
@@ -57,7 +57,6 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 gui.alertLoadErrors( loadErrors, advice );
             }
 
-            $form = form.getView().$;
             $formprogress = $( '.form-progress' );
 
             _setEventHandlers();
@@ -83,7 +82,8 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 form.resetView();
                 form = new Form( formSelector, defaultModelStr );
                 form.init();
-                $form = form.getView().$;
+                // formreset event will update the form media:
+                form.getView().$.trigger( 'formreset' );
             }
         }
 
@@ -117,6 +117,8 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                         form.resetView();
                         form = new Form( formSelector, defaultModelStr, record.xml, true );
                         loadErrors = form.init();
+                        // formreset event will update the form media:
+                        form.getView().$.trigger( 'formreset' );
                         _setDraftStatus( true );
                         form.setRecordName( record.name );
                         records.setActive( record.instanceId );
@@ -142,7 +144,8 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
         function _submitRecord() {
             var name, record, saveResult, redirect, beforeMsg, callbacks, authLink;
 
-            //$form.trigger( 'beforesave' );
+            form.getView.$.trigger( 'beforesave' );
+
             if ( !form.isValid() ) {
                 gui.alert( t( 'alert.validationerror.msg' ) );
                 return;
@@ -249,7 +252,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             console.log( 'saveRecord called with recordname:', recordName, 'confirmed:', confirmed, "error:", errorMsg, 'draft:', draft );
 
             // triggering "beforesave" event to update possible "timeEnd" meta data in form
-            $form.trigger( 'beforesave' );
+            form.getView().$.trigger( 'beforesave' );
 
             // check validity of record if necessary
             if ( !draft && !form.validate() ) {

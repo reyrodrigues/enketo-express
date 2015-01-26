@@ -41,7 +41,8 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
                     return set( survey );
                 }
             } )
-            .then( _setUpdateIntervals );
+            .then( _setUpdateIntervals )
+            .then( _setResetListener );
     }
 
     function get( survey ) {
@@ -77,6 +78,26 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
         setInterval( function() {
             _updateCache( survey );
         }, 20 * 60 * 1000 );
+        deferred.resolve( survey );
+        return deferred.promise;
+    }
+
+    /**
+     * Form resets require reloading the form media.
+     * This makes form resets slower, but it makes initial form loads faster.
+     *
+     * @param {[type]} survey [description]
+     */
+    function _setResetListener( survey ) {
+        var deferred = Q.defer();
+
+        $( document ).on( 'formreset', function( event ) {
+            if ( event.target.nodeName.toLowerCase() === 'form' ) {
+                survey.$form = $( this );
+                updateMedia( survey );
+            }
+        } );
+
         deferred.resolve( survey );
         return deferred.promise;
     }
