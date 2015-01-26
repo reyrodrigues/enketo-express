@@ -74,8 +74,22 @@ define( [ 'q' ], function( Q ) {
         return deferred.promise;
     }
 
+
+    function getThemeFromFormStr( formStr ) {
+        var matches = formStr.match( /<\s?form .*theme-([A-z]+)/ );
+        return ( matches && matches.length > 1 ) ? matches[ 1 ] : null;
+    }
+
+
+    function getTitleFromFormStr( formStr ) {
+        var matches = formStr.match( /<\s?h3 id="form-title">([A-z\s]+)</ );
+        return ( matches && matches.length > 1 ) ? matches[ 1 ] : null;
+    }
+
     return {
         blobToDataUri: blobToDataUri,
-        dataUriToBlob: dataUriToBlob
+        dataUriToBlob: dataUriToBlob,
+        getThemeFromFormStr: getThemeFromFormStr,
+        getTitleFromFormStr: getTitleFromFormStr
     };
 } );

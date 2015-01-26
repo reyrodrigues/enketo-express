@@ -1,8 +1,8 @@
 require( [ 'require-config' ], function( rc ) {
     "use strict";
     if ( console.time ) console.time( 'client loading time' );
-    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'translator', 'form-cache', 'q', 'jquery' ],
-        function( gui, controller, settings, connection, FormModel, t, formCache, Q, $ ) {
+    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'translator', 'utils', 'form-cache', 'q', 'jquery' ],
+        function( gui, controller, settings, connection, FormModel, t, utils, formCache, Q, $ ) {
             var $loader = $( '.form__loader' ),
                 $buttons = $( '.form-header__button--print, button#validate-form, button#submit-form' ),
                 survey = {
@@ -13,8 +13,6 @@ require( [ 'require-config' ], function( rc ) {
                     defaults: settings.defaults
                 };
 
-            // DEBUG
-            window.formCache = formCache;
 
             if ( settings.offline ) {
                 console.debug( 'in offline mode' );
@@ -50,7 +48,7 @@ require( [ 'require-config' ], function( rc ) {
                 var deferred = Q.defer();
 
                 if ( survey.form && survey.model ) {
-                    gui.swapTheme( survey.theme || _getThemeFromFormStr( survey.form ) )
+                    gui.swapTheme( survey.theme || utils.getThemeFromFormStr( survey.form ) )
                         .then( function() {
                             deferred.resolve( survey );
                         } );
@@ -58,18 +56,6 @@ require( [ 'require-config' ], function( rc ) {
                     deferred.reject( new Error( 'Received form incomplete' ) );
                 }
                 return deferred.promise;
-            }
-
-            // TODO: move to utils.js after merging offline features
-            function _getThemeFromFormStr( formStr ) {
-                var matches = formStr.match( /<\s?form .*theme-([A-z]+)/ );
-                return ( matches && matches.length > 1 ) ? matches[ 1 ] : null;
-            }
-
-            // TODO: move to utils.js after merging offline features
-            function _getTitleFromFormStr( formStr ) {
-                var matches = formStr.match( /<\s?h3 id="form-title">([A-z\s]+)</ );
-                return ( matches && matches.length > 1 ) ? matches[ 1 ] : null;
             }
 
             function _prepareInstance( modelStr, defaults ) {
@@ -105,7 +91,7 @@ require( [ 'require-config' ], function( rc ) {
                         // TODO pass $form as first parameter?
                         controller.init( 'form.or:eq(0)', formParts.model, _prepareInstance( formParts.model, settings.defaults ) );
                         $form.add( $buttons ).removeClass( 'hide' );
-                        $( 'head>title' ).text( _getTitleFromFormStr( formParts.form ) );
+                        $( 'head>title' ).text( utils.getTitleFromFormStr( formParts.form ) );
                         if ( console.timeEnd ) console.timeEnd( 'client loading time' );
 
                         formParts.$form = $form;
