@@ -33,7 +33,7 @@ module.exports = function( config ) {
                 pattern: 'public/lib/bower-components/jquery/dist/jquery.js',
                 included: false
             }, {
-                pattern: 'public/lib/db.js/src/db.js',
+                pattern: 'public/lib/martijnr-db.js/src/db.js',
                 included: false
             }, {
                 pattern: 'public/js/src/**/*.js',
