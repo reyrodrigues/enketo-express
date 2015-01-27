@@ -51,11 +51,11 @@ define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
                             }
                         }
                     },
-                    // Am putting records in separate table because it makes more sense for getting, updating and removing records
+                    // Records in separate table because it makes more sense for getting, updating and removing records
                     // if they are not stored in one (giant) array or object value.
                     // Need to watch out for bad iOS bug: http://www.raymondcamden.com/2014/9/25/IndexedDB-on-iOS-8--Broken-Bad
                     // but with the current keys there is no risk of using the same key in multiple tables.
-                    // Am choosing instanceId as the key because instanceName may change when editing a draft.
+                    // InstanceId is the key because instanceName may change when editing a draft.
                     records: {
                         key: {
                             keyPath: 'instanceId',
@@ -250,7 +250,8 @@ define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
                         model: survey.model,
                         enketoId: survey.enketoId,
                         hash: survey.hash,
-                        resources: resourceKeys
+                        resources: resourceKeys,
+                        maxSize: survey.maxSize
                     } );
                 } )
                 .then( function() {
@@ -693,7 +694,6 @@ define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
                 error = new Error( 'DataError. File not complete or id not provided.' );
                 error.name = 'DataError';
                 deferred.reject( error );
-                //return deferred.promise;
             }
         } else {
             deferred.reject( new Error( 'Unknown table or issing id or key.' ) );

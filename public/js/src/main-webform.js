@@ -19,8 +19,10 @@ require( [ 'require-config' ], function( rc ) {
                 formCache.init( survey )
                     .then( _swapTheme )
                     .then( _init )
+                    .then( formCache.updateMaxSubmissionSize )
                     .then( formCache.updateMedia )
                     .then( function( s ) {
+                        settings.maxSize = s.maxSize;
                         console.debug( 'Form is now stored and available offline!' );
                         // TODO show offline-capable icon in UI
                     } )
@@ -30,6 +32,10 @@ require( [ 'require-config' ], function( rc ) {
                 connection.getFormParts( survey )
                     .then( _swapTheme )
                     .then( _init )
+                    .then( connection.getMaximumSubmissionSize )
+                    .then( function( maxSize ) {
+                        settings.maxSize = maxSize;
+                    } )
                     .catch( _showErrorOrAuthenticate );
             }
 

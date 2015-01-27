@@ -22,6 +22,10 @@ require( [ 'require-config' ], function( rc ) {
                     gui.swapTheme( responses[ 0 ].theme || utils.getThemeFromFormStr( responses[ 0 ].form ) )
                         .then( function() {
                             _init( responses[ 0 ].form, responses[ 0 ].model, responses[ 1 ].instance );
+                        } )
+                        .then( connection.getMaximumSubmissionSize )
+                        .then( function( maxSize ) {
+                            settings.maxSize = maxSize;
                         } );
                 } else {
                     throw new Error( t( 'error.unknown' ) );

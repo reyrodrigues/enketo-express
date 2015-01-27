@@ -31,7 +31,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             options = options || {};
             instanceStrToEdit = instanceStrToEdit || null;
 
-            connection.init( true );
+            connection.init();
 
             form = new Form( formSelector, defaultModelStr, instanceStrToEdit );
 

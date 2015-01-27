@@ -7,11 +7,10 @@
  * types.
  */
 
-define( [ "q", "store", "jquery" ], function( Q, store, $ ) {
+define( [ "q", "store", "settings", "jquery" ], function( Q, store, settings, $ ) {
     "use strict";
 
-    var maxSize,
-        supported = typeof FileReader !== 'undefined',
+    var supported = typeof FileReader !== 'undefined',
         notSupportedAdvisoryMsg = '';
 
     /**
@@ -144,10 +143,7 @@ define( [ "q", "store", "jquery" ], function( Q, store, $ ) {
      * @return {Number}
      */
     function _getMaxSize() {
-        if ( !maxSize ) {
-            maxSize = $( document ).data( 'maxSubmissionSize' ) || 5 * 1024 * 1024;
-        }
-        return maxSize;
+        return settings.maxSize || 5 * 1024 * 1024;
     }
 
     return {

@@ -20,7 +20,7 @@
 
 define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( gui, settings, store, Q, t, $ ) {
     "use strict";
-    var progress, maxSubmissionSize,
+    var progress,
         that = this,
         CONNECTION_URL = '/connection',
         // location.search is added to pass the lang= parameter, in case this is used to override browser/system locale
@@ -29,6 +29,8 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
         SUBMISSION_URL = ( settings.enketoId ) ? '/submission/' + settings.enketoIdPrefix + settings.enketoId + location.search : null,
         INSTANCE_URL = ( settings.enketoId ) ? '/submission/' + settings.enketoIdPrefix + settings.enketoId : null,
         MAX_SIZE_URL = ( settings.enketoId ) ? '/submission/max-size/' + settings.enketoIdPrefix + settings.enketoId : null,
+        DEFAULT_MAX_SIZE = 5 * 1024 * 1024,
+        ABSOLUTE_MAX_SIZE = 100 * 1024 * 1024,
         currentOnlineStatus = null,
         uploadOngoingID = null,
         uploadOngoingBatchIndex = null,
@@ -41,13 +43,9 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
 
     /**
      * Initialize the connection object
-     * @param  { boolean=} submissions whether or not to prepare the connection object to deal with submissions
      */
-    function init( submissions ) {
+    function init() {
         checkOnlineStatus();
-        if ( submissions ) {
-            _setMaxSubmissionSize();
-        }
         window.setInterval( function() {
             checkOnlineStatus();
         }, 15 * 1000 );
@@ -448,52 +446,35 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
     }
 
     /**
-     * returns the value of the X-OpenRosa-Content-Length header return by the OpenRosa server for this form
-     * if request fails, returns a default value. Won't execute again if request was successful.
+     * Returns the value of the X-OpenRosa-Content-Length header returned by the OpenRosa server for this form.
      *
      * @return {number} [description]
      */
-    function _setMaxSubmissionSize() {
-        var storedMaxSize = ( store && store.getRecord ) ? store.getRecord( '__maxSize' ) : undefined,
-            defaultMaxSize = 5000000,
-            absoluteMaxSize = 100 * 1024 * 1024;
+    function getMaximumSubmissionSize() {
+        var maxSubmissionSize,
+            deferred = Q.defer();
 
-        if ( typeof maxSubmissionSize == 'undefined' ) {
-            $.ajax( MAX_SIZE_URL, {
+        $.ajax( MAX_SIZE_URL, {
                 type: 'GET',
                 timeout: 5 * 1000,
-                dataType: 'json',
-                success: function( response ) {
-                    if ( response && response.maxSize && !isNaN( response.maxSize ) ) {
-                        // setting an absolute max corresponding to value in enketo .htaccess file
-                        maxSubmissionSize = ( response.maxSize > absoluteMaxSize ) ? absoluteMaxSize : response.maxSize;
-                        // make the value available to other modules without having to add complex dependencies
-                        $( document ).data( {
-                            "maxSubmissionSize": maxSubmissionSize
-                        } );
-                        // store the value persistently for offline use
-                        if ( store && store.setRecord ) {
-                            store.setRecord( '__maxSize', maxSubmissionSize );
-                        }
-                    } else {
-                        console.error( MAX_SIZE_URL + ' returned a response that is not a number', response );
-                    }
-                },
-                error: function( jqXHR ) {
-                    console.error( MAX_SIZE_URL + ' returned an error', jqXHR );
+                dataType: 'json'
+            } )
+            .done( function( response ) {
+                if ( response && response.maxSize && !isNaN( response.maxSize ) ) {
+                    maxSubmissionSize = ( Number( response.maxSize ) > ABSOLUTE_MAX_SIZE ) ? ABSOLUTE_MAX_SIZE : Number( response.maxSize );
+                    deferred.resolve( maxSubmissionSize );
+                } else {
+                    console.error( MAX_SIZE_URL + ' returned a response that is not a number', response );
+                    deferred.resolve( DEFAULT_MAX_SIZE );
                 }
+            } )
+            .fail( function( jqXHR ) {
+                deferred.resolve( DEFAULT_MAX_SIZE );
             } );
 
-            maxSubmissionSize = storedMaxSize || defaultMaxSize;
-            $( document ).data( {
-                "maxSubmissionSize": maxSubmissionSize
-            } );
-        }
+        return deferred.promise;
     }
 
-    function getMaxSubmissionSize() {
-        return maxSubmissionSize;
-    }
 
     function _resetUploadResult() {
         uploadResult = {
@@ -640,7 +621,7 @@ define( [ 'gui', 'settings', 'store', 'q', 'translator', 'jquery' ], function( g
         uploadRecords: uploadRecords,
         getUploadQueue: getUploadQueue,
         getUploadOngoingID: getUploadOngoingID,
-        getMaxSubmissionSize: getMaxSubmissionSize,
+        getMaximumSubmissionSize: getMaximumSubmissionSize,
         getFormParts: getFormParts,
         getFormPartsHash: getFormPartsHash,
         getFile: getFile,

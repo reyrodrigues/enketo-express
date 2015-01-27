@@ -112,6 +112,30 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
     }
 
     /**
+     * Updates maximum submission size if this hasn't been defined yet.
+     * The first time this function is called is when the user is online.
+     * If the form/data server updates their max size setting, this value
+     * will be updated the next time the cache is refreshed.
+     *
+     * @param  {[type]} survey [description]
+     * @return {[type]}        [description]
+     */
+    function updateMaxSubmissionSize( survey ) {
+        var deferred = Q.defer();
+
+        if ( !survey.maxSize ) {
+            connection.getMaximumSubmissionSize()
+                .then( function( maxSize ) {
+                    survey.maxSize = maxSize;
+                    deferred.resolve( survey );
+                } );
+        } else {
+            deferred.resolve( survey );
+        }
+        return deferred.promise;
+    }
+
+    /**
      * Loads survey resources either from the store or via HTTP (and stores them)
      *
      * @param  {[type]} survey [description]
@@ -261,8 +285,7 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
     return {
         init: init,
         get: get,
-        //set: set,
-        //update: update,
+        updateMaxSubmissionSize: updateMaxSubmissionSize,
         updateMedia: updateMedia,
         remove: remove,
         flush: flush
