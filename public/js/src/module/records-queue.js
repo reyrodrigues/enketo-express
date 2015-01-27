@@ -111,8 +111,7 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
                         .appendTo( $newRecordList );
                 } );
                 $recordList.replaceWith( $newRecordList );
-            } )
-        ;
+            } );
     }
 
     /**
