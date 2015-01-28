@@ -18,16 +18,17 @@
  * Deals with browser storage
  */
 
-define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings, t ) {
+define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( store, connection, Q, settings, t ) {
     "use strict";
 
-    var $exportButton, $uploadButton, $recordList, $queueNumber;
+    var $exportButton, $uploadButton, $recordList, $queueNumber, uploadProgress,
+        uploadOngoing = false;
 
     // DEBUG
-    window.store = store;
+    // window.store = store;
 
     function init() {
-        // _setUploadIntervals();
+        ////_setUploadIntervals();
         // _setEventHandlers();
 
         $exportButton = $( '.record-list__button-bar__button.export' );
@@ -71,8 +72,119 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
     }
 
     function _setUploadIntervals() {
-
+        setTimeout( function() {
+            uploadQueue();
+        }, 30 * 1000 );
+        setInterval( function() {
+            uploadQueue();
+        }, 5 * 60 * 1000 );
     }
+
+    function uploadQueue() {
+        var successes = [],
+            fails = [];
+
+        if ( !uploadOngoing && connection.getOnlineStatus ) {
+
+            console.debug( 'uploading queue' );
+
+            uploadOngoing = true;
+            // TODO: disable upload button (or in uploadProgress?)
+
+            store.record.getAll( settings.enketoId, true )
+                .then( function( records ) {
+                    console.debug( 'records length', records.length );
+                    // TODO: should these be done sequentially? Would look nicer in sidebar...
+                    records.forEach( function( record ) {
+                        // get the whole record including files
+                        store.record.get( record.instanceId )
+                            .then( function( record ) {
+                                connection.uploadRecord( record );
+                                uploadProgress.update( record.instanceId, 'ongoing', '', successes.length + fails.length, records.length );
+                            } )
+                            .then( function( result ) {
+                                successes.push( record.name );
+                                // TODO: remove from store
+                                uploadProgress.update( record.instanceId, 'success' );
+                            } )
+                            .catch( function( result ) {
+                                fails.push( record.name );
+                                uploadProgress.update( record.instanceId, 'error', gui.getErrorResponseMsg( result.status ) );
+                            } )
+                            .then( function() {
+                                if ( successes.length + fails.length === records.length ) {
+                                    uploadOngoing = false;
+                                    if ( successes.length > 0 ) {}
+                                    $( document ).trigger( 'queuesubmissionsuccess', successes );
+                                    // TODO update record list
+                                }
+                            } );
+                    } );
+                } );
+        }
+    }
+
+    uploadProgress = {
+        _getLi: function( instanceId ) {
+            return $( '.record-list__records__record' ).find( '[data-id="' + instanceId + '"]' );
+        },
+        _reset: function( instanceId ) {
+            var $allLis = $( '.record-list_records' ).find( 'li' );
+            //if the current record, is the first in the list, reset the list
+            if ( $allLis.first().attr( 'data-id' ) === instanceId ) {
+                $allLis.removeClass( 'ongoing success error' ).filter( function() {
+                    return !$( this ).hasClass( 'record-list__records__record' );
+                } ).remove();
+            }
+        },
+        _updateClass: function( $el, status ) {
+            $el.removeClass( 'ongoing error' ).addClass( status );
+        },
+        _updateProgressBar: function( index, total ) {
+            var $progress;
+
+            $progress = $( '.record-list__upload-progress' ).attr( {
+                'max': total,
+                'value': index
+            } );
+
+            if ( index === total || total === 1 ) {
+                $progress.css( 'visibility', 'hidden' );
+            } else {
+                $progress.css( 'visibility', 'visible' );
+            }
+        },
+        _getMsg: function( status, msg ) {
+            return ( status === 'error' ) ? msg : '';
+        },
+        update: function( instanceId, status, msg, index, total ) {
+            var $result,
+                $lis = this._getLi( instanceId ),
+                displayMsg = this._getMsg( status, msg );
+
+            console.debug( 'updating progress', instanceId, status, msg, index, total );
+            this._reset( instanceId );
+
+            //add display messages (always showing end status)
+            if ( displayMsg ) {
+                $result = $( '<li data-id="' + instanceId + '" class="' + status + '">' + displayMsg + '</li>' ).insertAfter( $lis.last() );
+                window.setTimeout( function() {
+                    $result.hide( 500 );
+                }, 3000 );
+            }
+
+            this._updateClass( $lis.first(), status );
+            if ( index && total ) {
+                this._updateProgressBar( index, total );
+            }
+
+            if ( uploadQueue.length === 0 && status !== 'ongoing' ) {
+                $( 'button.upload-records' ).removeAttr( 'disabled' );
+            } else {
+                $( 'button.upload-records' ).attr( 'disabled', 'disabled' );
+            }
+        }
+    };
 
     function _updateRecordList() {
         var $newRecordList, $li,
@@ -83,7 +195,7 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
         $uploadButton.prop( 'disabled', true );
         $recordList = $( '.record-list__records' ).empty();
 
-        // TODO: an error is swallowed here, e.g remove settings.enketoId below
+        // rebuild the list
         return store.record.getAll( settings.enketoId )
             .then( function( records ) {
                 records = records || [];
@@ -141,6 +253,7 @@ define( [ 'store', 'q', 'settings', 'translator' ], function( store, Q, settings
         flush: flush,
         getCounterValue: getCounterValue,
         setActive: setActive,
+        uploadQueue: uploadQueue
     };
 
 } );

@@ -28,6 +28,10 @@
       "negButton": "Use it",
       "posButton": "Show options"
     },
+    "queuesubmissionsuccess": {
+      "msg": "__recordNames__ was successfully submitted",
+      "msg_plural": "__recordNames__ were successfully submitted"
+    },
     "recordloadsuccess": {
       "msg": "__recordName__ has been loaded"
     },
@@ -44,16 +48,14 @@
     },
     "submissionerror": {
       "authrequiredmsg": "Authentication required. Please authenticate __here__ in a different browser tab and try again.",
-      "fnfheading": "File(s) not Found",
       "fnfmsg": [
-        "The following media files could not be retrieved: __failedFiles__. The submission will go ahead and show the missing filenames in the data, but without the actual file(s).",
+        "The following media files could not be retrieved: __failedFiles__. The submission went ahead without these files and this succeeded.",
         "Please contact __supportEmail__ to report a bug and if possible explain how the issue can be reproduced."
       ],
-      "heading": "Submission Failed",
-      "tryagainmsg": "Please try submitting again."
+      "heading": "Submission Failed"
     },
     "submissionsuccess": {
-      "heading": "Submission Successful!",
+      "heading": "Submission Successful",
       "msg": "Your data was submitted!",
       "redirectmsg": "You will now be redirected."
     },
@@ -191,14 +193,12 @@
   },
   "submission": {
     "http0": "Failed (Offline?).",
-    "http201": "Done!",
-    "http202": "Done! (duplicate)",
-    "http2xx": "Unexpected response when submitting data. ",
-    "http400": "Data server did not accept data. ",
-    "http403": "Not allowed to post data to this data server. ",
+    "http2xx": "Unexpected response when submitting data.",
+    "http400": "Data server did not accept data.",
+    "http403": "Not allowed to post data to this data server.",
     "http404": "Submission service on data server not found.",
     "http413": "Data is too large.",
     "http4xx": "Unknown submission problem on data server.",
-    "http500": "The data server for your form or the Enketo server is down. Please try again later or contact __supportEmail__ please."
+    "http500": "The data server for your form or the Enketo server is down. Please try again later or contact __supportEmail__."
   }
 }

@@ -142,60 +142,65 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
          * and is not used in offline-capable views.
          */
         function _submitRecord() {
-            var name, record, saveResult, redirect, beforeMsg, callbacks, authLink;
+            var record, redirect, beforeMsg, authLink, level,
+                msg = [];
 
-            form.getView.$.trigger( 'beforesave' );
+            form.getView().$.trigger( 'beforesave' );
 
             if ( !form.isValid() ) {
                 gui.alert( t( 'alert.validationerror.msg' ) );
                 return;
             }
-            redirect = ( typeof settings !== 'undefined' && typeof settings[ 'returnURL' ] !== 'undefined' && settings[ 'returnURL' ] ) ? true : false;
             beforeMsg = ( redirect ) ? t( 'alert.submission.redirectmsg' ) : '';
             authLink = '<a href="/login" target="_blank">' + t( 'here' ) + '</a>';
 
             gui.alert( beforeMsg + '<br />' +
                 '<div class="loader-animation-small" style="margin: 10px auto 0 auto;"/>', t( 'alert.submission.msg' ), 'bare' );
 
-            callbacks = {
-                error: function( jqXHR ) {
-                    if ( jqXHR.status === 401 ) {
+            record = {
+                'xml': form.getDataStr( false, true ),
+                'files': fileManager.getCurrentFiles()
+            };
+
+            connection.uploadRecord( record )
+                .then( function( result ) {
+                    result = result || {};
+                    level = 'success';
+
+                    if ( result.failedFiles && result.failedFiles.length > 0 ) {
+                        msg = [ t( 'alert.submissionerror.fnfmsg', {
+                            failedFiles: result.failedFiles.join( ', ' ),
+                            supportEmail: settings.supportEmail
+                        } ) ];
+                        level = 'warning';
+                    }
+
+                    // this event is used in communicating back to iframe parent window
+                    $( document ).trigger( 'submissionsuccess' );
+
+                    if ( settings.returnUrl ) {
+                        msg += '<br/>' + t( 'alert.submissionsuccess.redirectmsg' );
+                        gui.alert( msg, t( 'alert.submissionsuccess.heading' ), level );
+                        setTimeout( function() {
+                            location.href = settings.returnUrl;
+                        }, 1500 );
+                    } else {
+                        msg = ( msg.length > 0 ) ? msg : t( 'alert.submissionsuccess.msg' );
+                        gui.alert( msg, t( 'alert.submissionsuccess.heading' ), level );
+                        _resetForm( true );
+                    }
+                } )
+                .fail( function( result ) {
+                    result = result || {};
+                    console.error( 'submission failed', result );
+                    if ( result.status && result.status === 401 ) {
                         gui.alert( t( 'alert.submissionerror.authrequiredmsg', {
                             here: authLink
                         } ), t( 'alert.submissionerror.heading' ) );
                     } else {
-                        gui.alert( t( 'alert.submissionerror.tryagainmsg' ), t( 'alert.submissionerror.heading' ) );
+                        gui.alert( gui.getErrorResponseMsg( result.status ), t( 'alert.submissionerror.heading' ) );
                     }
-                },
-                success: function() {
-                    $( document ).trigger( 'submissionsuccess' ); // since connection.processOpenRosaResponse is bypassed
-                    if ( redirect ) {
-                        // scroll to top to potentially work around an issue where the alert modal is not positioned correctly
-                        // https://github.com/kobotoolbox/enketo-express/issues/116
-                        window.scrollTo( 0, 0 );
-                        gui.alert( t( 'alert.submissionsuccess.redirectmsg' ), t( 'alert.submissionsuccess.heading' ), 'success' );
-                        setTimeout( function() {
-                            location.href = settings.returnURL;
-                        }, 1500 );
-                    }
-                    //also use for iframed forms
-                    else {
-                        gui.alert( t( 'alert.submissionsuccess.msg' ), t( 'alert.submissionsuccess.heading' ), 'success' );
-                        _resetForm( true );
-                    }
-                },
-                complete: function() {}
-            };
-
-            record = {
-                key: 'record',
-                data: form.getDataStr( true, true ),
-                files: fileManager.getCurrentFiles()
-            };
-
-            _prepareFormDataArray( record ).forEach( function( batch ) {
-                connection.uploadRecords( batch, true, callbacks );
-            } );
+                } );
         }
 
         function _getRecordName() {
@@ -279,7 +284,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             // build the record object
             record = {
                 'draft': draft,
-                'xml': form.getDataStr( true, true ),
+                'xml': form.getDataStr( false, true ),
                 'name': recordName,
                 'instanceId': form.getInstanceID(),
                 'enketoId': settings.enketoId,
@@ -306,9 +311,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     if ( draft ) {
                         gui.feedback( t( 'alert.recordsavesuccess.draftmsg' ), 3 );
                     } else {
-                        // try to send the record immediately
                         gui.feedback( t( 'alert.recordsavesuccess.finalmsg' ), 3 );
-                        // submitOneForced( recordName, record );
                     }
                 } )
                 .catch( function( error ) {
@@ -319,104 +322,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                     } else if ( !errorMsg ) {
                         errorMsg = t( 'confirm.save.unkownerror' );
                     }
-                    //_saveRecord( undefined, false, errorMsg );
                     gui.alert( errorMsg, 'Save Error' );
                 } );
         }
-
-
-        /**
-         * Builds up a record array including media files, divided into batches
-         *
-         * @param { { name: string, data: string } } record[ description ]
-         */
-        function _prepareFormDataArray( record ) {
-            var model = new FormModel( record.data ),
-                instanceID = model.getInstanceID(),
-                $fileNodes = model.$.find( '[type="file"]' ).removeAttr( 'type' ),
-                xmlData = model.getStr( false, true ),
-                xmlSubmissionBlob = new Blob( [ xmlData ], {
-                    type: 'text/xml'
-                } ),
-                availableFiles = record.files || [],
-                sizes = [],
-                failedFiles = [],
-                files = [],
-                batches = [
-                    []
-                ],
-                batchesPrepped = [],
-                maxSize = connection.getMaxSubmissionSize();
-
-            $fileNodes.each( function() {
-                var file,
-                    $node = $( this ),
-                    nodeName = $node.prop( 'nodeName' ),
-                    fileName = $node.text();
-
-                // check if file is actually available
-                availableFiles.some( function( f ) {
-                    if ( f.name === fileName ) {
-                        file = f;
-                        return true;
-                    }
-                    return false;
-                } );
-
-                // add the file if it is available
-                if ( file ) {
-                    files.push( {
-                        nodeName: nodeName,
-                        file: file
-                    } );
-                    sizes.push( file.size );
-                } else {
-                    failedFiles.push( file.name );
-                    console.error( 'Error occured when trying to retrieve ' + file.name );
-                }
-            } );
-
-            if ( files.length > 0 ) {
-                batches = divideIntoBatches( sizes, maxSize );
-            }
-
-            // console.debug( 'splitting record into ' + batches.length + ' batches to reduce submission size ', batches );
-
-            batches.forEach( function( batch, index ) {
-                var batchPrepped,
-                    fd = new FormData();
-
-                fd.append( 'xml_submission_file', xmlSubmissionBlob );
-
-                // batch with XML data
-                batchPrepped = {
-                    name: record.key,
-                    instanceID: instanceID,
-                    formData: fd,
-                    batches: batches.length,
-                    batchIndex: index
-                };
-
-                // add any media files to the batch
-                batch.forEach( function( fileIndex ) {
-                    batchPrepped.formData.append( files[ fileIndex ].nodeName, files[ fileIndex ].file );
-                } );
-
-                // push the batch to the array
-                batchesPrepped.push( batchPrepped );
-            } );
-
-            // notify user if files could not be found, but let submission go ahead anyway
-            if ( failedFiles.length > 0 ) {
-                gui.alert( t( 'alert.submissionerror.fnfmsg', {
-                    failedFiles: failedFiles.join( ', ' ),
-                    supportEmail: settings.supportEmail
-                } ), t( 'alert.submissionerror.fnfheading' ) );
-            }
-
-            return batchesPrepped;
-        }
-
 
         function _setEventHandlers() {
 
@@ -452,6 +360,11 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 }
             } );
 
+            $( '.record-list__button-bar__button.upload' ).on( 'click', function() {
+                console.debug( 'click on upload' );
+                records.uploadQueue();
+            } );
+
             $( document ).on( 'click', '.record-list__records__record[data-draft="true"]', function() {
                 _loadRecord( $( this ).attr( 'data-id' ), false );
             } );
@@ -465,6 +378,14 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             if ( _inIframe() && settings.parentWindowOrigin ) {
                 $( document ).on( 'submissionsuccess edited', _postEventAsMessageToParentWindow );
             }
+
+            $( document ).on( 'queuesubmissionsuccess', function() {
+                var successes = Array.prototype.slice.call( arguments ).slice( 1 );
+                gui.feedback( t( 'alert.queuesubmissionsuccess.msg', {
+                    count: successes.length,
+                    recordNames: successes.join( ', ' )
+                } ), 10 );
+            } );
 
             $( '.form-footer [name="draft"]' ).on( 'change', function() {
                 var text = ( $( this ).prop( 'checked' ) ) ? t( "formfooter.savedraft.btn" ) : t( "formfooter.submit.btn" );
@@ -509,49 +430,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             }
         }
 
-        /**
-         * splits an array of file sizes into batches (for submission) based on a limit
-         * @param  {Array.<number>} fileSizes   array of file sizes
-         * @param  {number}     limit   limit in byte size of one chunk (can be exceeded for a single item)
-         * @return {Array.<Array.<number>>} array of arrays with index, each secondary array of indices represents a batch
-         */
 
-        function divideIntoBatches( fileSizes, limit ) {
-            var i, j, batch, batchSize,
-                sizes = [],
-                batches = [];
-            //limit = limit || 5 * 1024 * 1024;
-            for ( i = 0; i < fileSizes.length; i++ ) {
-                sizes.push( {
-                    'index': i,
-                    'size': fileSizes[ i ]
-                } );
-            }
-            while ( sizes.length > 0 ) {
-                batch = [ sizes[ 0 ].index ];
-                batchSize = sizes[ 0 ].size;
-                if ( sizes[ 0 ].size < limit ) {
-                    for ( i = 1; i < sizes.length; i++ ) {
-                        if ( ( batchSize + sizes[ i ].size ) < limit ) {
-                            batch.push( sizes[ i ].index );
-                            batchSize += sizes[ i ].size;
-                        }
-                    }
-                }
-                batches.push( batch );
-                for ( i = 0; i < sizes.length; i++ ) {
-                    for ( j = 0; j < batch.length; j++ ) {
-                        if ( sizes[ i ].index === batch[ j ] ) {
-                            sizes.splice( i, 1 );
-                        }
-                    }
-                }
-            }
-            return batches;
-        }
 
         return {
-            init: init,
-            divideIntoBatches: divideIntoBatches
+            init: init
         };
     } );

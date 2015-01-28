@@ -191,8 +191,9 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
 
             // automatically remove feedback after a period
             setTimeout( function() {
-                var siblings = $msg.siblings( 'p' ).length;
+                var siblings;
                 if ( typeof $msg !== 'undefined' ) {
+                    siblings = $msg.siblings( 'p' ).length;
                     $msg.remove();
                     if ( siblings === 0 ) {
                         feedbackBar.hide();
@@ -476,6 +477,42 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         return bottom - above - fluff;
     }
 
+    function getErrorResponseMsg( statusCode ) {
+        var msg,
+            supportEmailObj = {
+                supportEmail: settings.supportEmail
+            },
+            contactSupport = t( 'contact.support', supportEmailObj ),
+            contactAdmin = t( 'contact.admin' ),
+            statusMap = {
+                '0': t( 'submission.http0' ),
+                '200': t( 'submission.http2xx' ) + '<br/>' + contactSupport,
+                '2xx': t( 'submission.http2xx' ) + '<br/>' + contactSupport,
+                '400': t( 'submission.http400' ) + '<br/>' + contactAdmin,
+                '403': t( 'submission.http403' ) + '<br/>' + contactAdmin,
+                '404': t( 'submission.http404' ),
+                '4xx': t( 'submission.http4xx' ),
+                '413': t( 'submission.http413' ) + '<br/>' + contactSupport,
+                '500': t( 'submission.http500', supportEmailObj ),
+                '503': t( 'submission.http500', supportEmailObj ),
+                '5xx': t( 'submission.http500', supportEmailObj )
+            };
+
+        console.debug( 'getting msg belonging to ', statusCode );
+
+        statusCode = ( typeof statusCode !== 'undefined' ) ? statusCode.toString() : 'undefined';
+
+        if ( statusMap[ statusCode ] ) {
+            msg = statusMap[ statusCode ];
+        } else if ( statusMap[ statusCode.replace( statusCode.substring( 1 ), 'xx' ) ] ) {
+            msg = statusMap[ statusCode.replace( statusCode.substring( 1 ), 'xx' ) ];
+        } else {
+            msg = t( 'error.unknown' );
+        }
+
+        return msg;
+    }
+
 
     $( document ).ready( function() {
         init();
@@ -492,6 +529,7 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         fillHeight: fillHeight,
         confirmLogin: confirmLogin,
         alertLoadErrors: alertLoadErrors,
-        alertCacheUnsupported: alertCacheUnsupported
+        alertCacheUnsupported: alertCacheUnsupported,
+        getErrorResponseMsg: getErrorResponseMsg
     };
 } );
