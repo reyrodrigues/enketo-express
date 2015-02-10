@@ -53,8 +53,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             Modernizr.touch = false;
             $( 'html' ).removeClass( 'touch' );
         }
-        // avoids Foundation Reveal exception when instantiating a dialog when one is already open
-        //$( document ).foundation();
 
         //customize vex.dialog.custom.js options
         dialog.defaultOptions.className = 'vex-theme-plain';
@@ -67,11 +65,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
 
         $( document ).on( 'click', '#feedback-bar .close, .touch #feedback-bar', function( event ) {
             feedbackBar.hide();
-            return false;
-        } );
-
-        $( document ).on( 'click', '#page .close', function( event ) {
-            pages.close();
             return false;
         } );
 
@@ -94,40 +87,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             alert( msg, t( 'alert.offlinesupported.heading' ), 'normal' );
         } );
 
-        // capture all internal links to navigation menu items (except the links in the navigation menu itself)
-        $( document ).on( 'click', 'a[href^="#"]:not([href="#"]):not(nav ul li a)', function( event ) {
-            var href = $( this ).attr( 'href' );
-            console.log( 'captured click to nav page, href=' + href );
-            //if href is not just an empty anchor it is an internal link and will trigger a navigation menu click
-            if ( href !== '#' ) {
-                event.preventDefault();
-                $( 'nav li a[href="' + href + '"]' ).click();
-            }
-        } );
-
-        // event handlers for navigation menu
-        $( 'nav ul li a[href^="#"]' )
-            .click( function( event ) {
-                event.preventDefault();
-                var targetPage = $( this ).attr( 'href' ).substr( 1 );
-                pages.open( targetPage );
-                $( this ).closest( 'li' ).addClass( 'active' ).siblings().removeClass( 'active' );
-            } );
-
-        // handlers for status icons in header
-        $( window ).on( 'onlinestatuschange', function( e, online ) {
-            updateStatus.connection( online );
-        } );
-
-        $( document ).on( 'edit', 'form.jr', function( event, status ) {
-            //console.log('gui updating edit status icon');
-            updateStatus.edit( status );
-        } );
-
-        $( document ).on( 'browsersupport', function( e, supported ) {
-            updateStatus.support( supported );
-        } );
-
         $( document ).on( 'xpatherror', function( ev, error ) {
             var email = settings[ 'supportEmail' ],
                 link = '<a href="mailto:' + email + '?subject=xpath errors for: ' + location.href + '&body=' + error + '" target="_blank" >' + email + '</a>';
@@ -135,10 +94,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             alert( t( 'alert.xpatherror.msg', {
                 emailLink: link
             } ) + '<ul class="error-list"><li>' + error + '</li></ul>', t( 'alert.xpatherror.heading' ) );
-        } );
-
-        $( '.ad .close' ).on( 'click', function() {
-            $( this ).closest( '.ad' ).remove();
         } );
     }
 
@@ -427,55 +382,14 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
      * @type {Object}
      */
     updateStatus = {
-        connection: function( online ) {
-
-            /*console.log('updating online status in menu bar to:', online);
-		if (online === true) {
-			$('header #status-connection').removeClass().addClass('ui-icon ui-icon-signal-diag')
-				.attr('title', 'It appears there is currently an Internet connection available.');
-			$('.drawer #status').removeClass('offline waiting').text('');
-		}
-		else if (online === false) {
-			$('header #status-connection').removeClass().addClass('ui-icon ui-icon-cancel')
-				.attr('title', 'It appears there is currently no Internet connection');
-			$('.drawer #status').removeClass('waiting').addClass('offline').text('Offline. ');
-		}
-		else{
-			$('.drawer #status').removeClass('offline').addClass('waiting').text('Waiting. ');
-		}*/
-        },
-        edit: function( editing ) {
-
-            if ( editing ) {
-                $( 'header #status-editing' ).removeClass().addClass( 'ui-icon ui-icon-pencil' )
-                    .attr( 'title', 'Form is being edited.' );
-            } else {
-                $( 'header #status-editing' ).removeClass().attr( 'title', '' );
-            }
-        },
-        support: function( supported ) {},
         offlineLaunch: function( offlineCapable ) {
             if ( offlineCapable ) {
                 $( '.offline-enabled-icon.not-enabled' ).removeClass( 'not-enabled' );
             } else {
                 $( '.offline-enabled-icon' ).addClass( 'not-enabled' );
             }
-            //$( '.drawer #status-offline-launch' ).text( status );
         }
     };
-
-    /**
-     * Returns the height in pixels that it would take for this element to stretch down to the bottom of the window
-     * For now it's a dumb function that only takes into consideration a header above the element.
-     * @param  {jQuery} $elem [description]
-     * @return {number}       [description]
-     */
-    function fillHeight( $elem ) {
-        var bottom = $( window ).height(),
-            above = $( 'header' ).outerHeight( true ),
-            fluff = $elem.outerHeight() - $elem.height();
-        return bottom - above - fluff;
-    }
 
     function getErrorResponseMsg( statusCode ) {
         var msg,
@@ -513,7 +427,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         return msg;
     }
 
-
     $( document ).ready( function() {
         init();
     } );
@@ -526,7 +439,6 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
         updateStatus: updateStatus,
         pages: pages,
         swapTheme: swapTheme,
-        fillHeight: fillHeight,
         confirmLogin: confirmLogin,
         alertLoadErrors: alertLoadErrors,
         alertCacheUnsupported: alertCacheUnsupported,
