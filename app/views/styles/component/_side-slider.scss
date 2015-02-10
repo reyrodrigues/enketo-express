@@ -150,24 +150,23 @@ $slider-width: 240px;
                 }
             }
         }
+        &__msg {
+            padding: 0 5px;
+            line-height: 15px;
+            &.success {
+                color: green;
+            }
+            &.ongoing {
+                color: orange;
+            }
+            &.error {
+                color: red;
+            }
+        }
         &--none {
             text-align: center;
             margin-bottom: 35px;
             font-style: italic;
         }
     }
-    /*
-    li:not(.record) {
-        padding: 0 5px;
-        line-height: 15px;
-        &.success {
-            color: green;
-        }
-        &.ongoing {
-            color: orange;
-        }
-        &.error {
-            color: red;
-        }
-    }*/
 }

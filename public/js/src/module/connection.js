@@ -107,13 +107,6 @@ define( [ 'settings', 'q', 'translator', 'enketo-js/FormModel', 'jquery' ], func
                 console.debug( 'results of all batches submitted', results );
                 return results[ 0 ];
             } );
-
-        // TODO: check if comment below still valid
-        /**
-         * ODK Aggregrate gets very confused if two POSTs are sent in quick succession,
-         * as it duplicates 1 entry and omits the other but returns 201 for both...
-         * so we wait for the previous POST to finish before sending the next
-         */
     }
 
     /**
@@ -143,7 +136,7 @@ define( [ 'settings', 'q', 'translator', 'enketo-js/FormModel', 'jquery' ], func
                     status: jqXHR.status,
                     failedFiles: ( recordBatch.failedFiles ) ? recordBatch.failedFiles : undefined
                 };
-                if ( jqXHR.status === 201 || jqXHR.status === 202 ) {
+                if ( result.status === 201 || result.status === 202 ) {
                     deferred.resolve( result );
                 } else {
                     deferred.reject( result );
@@ -152,8 +145,8 @@ define( [ 'settings', 'q', 'translator', 'enketo-js/FormModel', 'jquery' ], func
             .fail( function( jqXHR, textStatus, errorThrown ) {
                 // TODO: extract message from XML response?
                 deferred.reject( {
-                    status: jqXHR.status,
-                    message: textStatus
+                    status: jqXHR.status
+                        // message: textStatus
                 } );
                 if ( jqXHR.status === 0 ) {
                     _setOnlineStatus( false );

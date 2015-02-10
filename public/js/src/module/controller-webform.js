@@ -84,6 +84,9 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 form.init();
                 // formreset event will update the form media:
                 form.getView().$.trigger( 'formreset' );
+                if ( records ) {
+                    records.setActive( null );
+                }
             }
         }
 
@@ -94,7 +97,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
          * @param  {=boolean?} confirmed  [description]
          */
         function _loadRecord( instanceId, confirmed ) {
-            var record, texts, choices, loadErrors;
+            var texts, choices, loadErrors;
 
             if ( !confirmed && form.getEditStatus() ) {
                 texts = {
@@ -109,7 +112,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 };
                 gui.confirm( texts, choices );
             } else {
-                record = store.record.get( instanceId )
+                records.get( instanceId )
                     .then( function( record ) {
                         if ( !record || !record.xml ) {
                             return gui.alert( t( 'alert.recordnotfound.msg' ) );
@@ -361,12 +364,15 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
             } );
 
             $( '.record-list__button-bar__button.upload' ).on( 'click', function() {
-                console.debug( 'click on upload' );
                 records.uploadQueue();
             } );
 
             $( document ).on( 'click', '.record-list__records__record[data-draft="true"]', function() {
                 _loadRecord( $( this ).attr( 'data-id' ), false );
+            } );
+
+            $( document ).on( 'click', '.record-list__records__record', function() {
+                $( this ).next( '.record-list__records__msg' ).toggle( 100 );
             } );
 
             $( document ).on( 'progressupdate', 'form.or', function( event, status ) {

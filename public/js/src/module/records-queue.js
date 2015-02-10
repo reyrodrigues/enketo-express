@@ -18,7 +18,7 @@
  * Deals with browser storage
  */
 
-define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( store, connection, Q, settings, t ) {
+define( [ 'store', 'connection', 'gui', 'q', 'settings', 'translator' ], function( store, connection, gui, Q, settings, t ) {
     "use strict";
 
     var $exportButton, $uploadButton, $recordList, $queueNumber, uploadProgress,
@@ -31,6 +31,7 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
         ////_setUploadIntervals();
         // _setEventHandlers();
 
+        // TODO: Add export feature
         $exportButton = $( '.record-list__button-bar__button.export' );
         $uploadButton = $( '.record-list__button-bar__button.upload' );
         $queueNumber = $( '.offline-enabled__queue-length' );
@@ -125,7 +126,8 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
      * @return {Promise} [description]
      */
     function uploadQueue() {
-        var successes = [],
+        var errorMsg,
+            successes = [],
             fails = [];
 
         if ( !uploadOngoing && connection.getOnlineStatus ) {
@@ -133,7 +135,7 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
             console.debug( 'uploading queue' );
 
             uploadOngoing = true;
-            // TODO: disable upload button (or in uploadProgress?)
+            $uploadButton.prop( 'disabled', true );
 
             store.record.getAll( settings.enketoId, true )
                 .then( function( records ) {
@@ -143,27 +145,29 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
                             // get the whole record including files
                             return store.record.get( record.instanceId )
                                 .then( function( record ) {
-                                    uploadProgress.update( record.instanceId, 'ongoing' );
+                                    uploadProgress.update( record.instanceId, 'ongoing', '', successes.length + fails.length, records.length );
                                     return connection.uploadRecord( record );
                                 } )
                                 .then( function( result ) {
                                     successes.push( record.name );
-                                    // TODO: remove from store
                                     uploadProgress.update( record.instanceId, 'success', '', successes.length + fails.length, records.length );
+                                    return store.record.remove( record.instanceId );
                                 } )
                                 .catch( function( result ) {
+                                    // if any non HTTP error occurs, output the error.message
+                                    errorMsg = result.message || gui.getErrorResponseMsg( result.status );
                                     fails.push( record.name );
-                                    uploadProgress.update( record.instanceId, 'error', gui.getErrorResponseMsg( result.status ), successes.length + fails.length, records.length );
+                                    uploadProgress.update( record.instanceId, 'error', errorMsg, successes.length + fails.length, records.length );
                                 } )
                                 .then( function() {
                                     if ( successes.length + fails.length === records.length ) {
                                         uploadOngoing = false;
                                         if ( successes.length > 0 ) {
-
+                                            // let gui send a feedback message
+                                            $( document ).trigger( 'queuesubmissionsuccess', successes );
+                                            // update the list by properly removing obsolete records
+                                            _updateRecordList();
                                         }
-                                        $( document ).trigger( 'queuesubmissionsuccess', successes );
-                                        // TODO update record list
-
                                     }
                                 } );
                         } );
@@ -182,7 +186,7 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
             return $( '.record-list__records__record[data-id="' + instanceId + '"]' );
         },
         _reset: function( instanceId ) {
-            var $allLis = $( '.record-list_records' ).find( 'li' );
+            var $allLis = $( '.record-list__records' ).find( 'li' );
             //if the current record, is the first in the list, reset the list
             if ( $allLis.first().attr( 'data-id' ) === instanceId ) {
                 $allLis.removeClass( 'ongoing success error' ).filter( function() {
@@ -191,7 +195,7 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
             }
         },
         _updateClass: function( $el, status ) {
-            $el.removeClass( 'ongoing error' ).addClass( status );
+            $el.removeClass( 'ongoing success error' ).addClass( status );
         },
         _updateProgressBar: function( index, total ) {
             var $progress;
@@ -215,26 +219,28 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
                 $li = this._getLi( instanceId ),
                 displayMsg = this._getMsg( status, msg );
 
-            console.debug( 'updating progress', $li, instanceId, status, msg, index, total );
             this._reset( instanceId );
 
-            //add display messages (always showing end status)
+            // add display messages (always showing end status)
             if ( displayMsg ) {
-                $result = $( '<li data-id="' + instanceId + '" class="' + status + '">' + displayMsg + '</li>' ).insertAfter( $li );
+                $result = $( '<li data-id="' + instanceId + '" class="record-list__records__msg ' + status + '">' + displayMsg + '</li>' ).insertAfter( $li );
                 window.setTimeout( function() {
-                    $result.hide( 500 );
+                    $result.hide( 600 );
                 }, 3000 );
             }
 
+            // update the status class
             this._updateClass( $li, status );
-            if ( index && total ) {
-                this._updateProgressBar( index, total );
+
+            // hide succesful submissions from record list in side bar
+            // they will be properly removed later in _updateRecordList
+            if ( status === 'success' ) {
+                $li.hide( 1500 );
             }
 
-            if ( uploadQueue.length === 0 && status !== 'ongoing' ) {
-                $( 'button.upload-records' ).removeAttr( 'disabled' );
-            } else {
-                $( 'button.upload-records' ).attr( 'disabled', 'disabled' );
+            // update the submissions progress bar
+            if ( index && total ) {
+                this._updateProgressBar( index, total );
             }
         }
     };
@@ -245,42 +251,60 @@ define( [ 'store', 'connection', 'q', 'settings', 'translator' ], function( stor
      * @return {Promise} [description]
      */
     function _updateRecordList() {
-        var $newRecordList, $li,
-            deferred = Q.defer();
+        var $li;
+        // deferred = Q.defer();
+
 
         // reset the list
         $exportButton.prop( 'disabled', true );
         $uploadButton.prop( 'disabled', true );
-        $recordList = $( '.record-list__records' ).empty();
+        $recordList = $( '.record-list__records' );
 
         // rebuild the list
         return store.record.getAll( settings.enketoId )
             .then( function( records ) {
                 records = records || [];
+
                 // update queue number
                 $queueNumber.text( records.length );
+
                 // add 'no records' message
                 if ( records.length === 0 ) {
-                    $recordList.append( '<li class="record-list__records--none">' + t( 'record-list.norecords' ) + '</li>' );
-                    deferred.resolve();
-                    return deferred.promise;
+                    $recordList.empty().append( '<li class="record-list__records--none">' + t( 'record-list.norecords' ) + '</li>' );
+                    // deferred.resolve();
+                    // return deferred.promise;
                 }
-                // enable export button
-                $exportButton.prop( 'disabled', false );
-                $newRecordList = $recordList.clone();
-                // add records
+
+                // remove records that no longer exist
+                $recordList.find( '.record-list__records__record' ).each( function() {
+                    var $rec = $( this );
+                    if ( !records.some( function( rec ) {
+                            return $rec.attr( 'data-id' ) === rec.instanceId;
+                        } ) ) {
+                        $rec.next( '.msg' ).addBack().remove();
+                    }
+                } );
+
+                // TODO enable export button
+                // $exportButton.prop( 'disabled', false );
+
                 records.forEach( function( record ) {
                     // if there is at least one record not marked as draft
                     if ( !record.draft ) {
                         $uploadButton.prop( 'disabled', false );
                     }
-                    $li = $( '<li class="record-list__records__record" />' )
-                        .text( record.name )
-                        .attr( 'data-id', record.instanceId )
+                    $li = uploadProgress._getLi( record.instanceId );
+                    // Add the record to the list if it doesn't exist already
+                    // Any submission error messages and class will remain present for existing records.
+                    if ( $li.length === 0 ) {
+                        $li = $( '<li class="record-list__records__record" />' )
+                            .attr( 'data-id', record.instanceId )
+                            .appendTo( $recordList );
+                    }
+                    // add or update properties
+                    $li.text( record.name )
                         .attr( 'data-draft', !!record.draft )
-                        .appendTo( $newRecordList );
                 } );
-                $recordList.replaceWith( $newRecordList );
             } );
     }
 
