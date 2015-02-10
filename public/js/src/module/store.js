@@ -171,13 +171,30 @@ define( [ 'db', 'q', 'utils', 'translator' ], function( db, Q, utils, t ) {
         incrementRecordCount: function( record ) {
             return propertyStore.getSurveyStats( record.enketoId )
                 .then( function( stats ) {
-                    if ( !stats || !stats.recordCount ) {
+                    if ( !stats ) {
                         stats = {
-                            name: record.enketoId + ':stats',
-                            recordCount: 0
+                            name: record.enketoId + ':stats'
                         };
                     }
+                    if ( !stats.recordCount ) {
+                        stats.recordCount = 0;
+                    }
                     ++stats.recordCount;
+                    return propertyStore.update( stats );
+                } );
+        },
+        addSubmittedInstanceId: function( record ) {
+            return propertyStore.getSurveyStats( record.enketoId )
+                .then( function( stats ) {
+                    if ( !stats ) {
+                        stats = {
+                            name: record.enketoId + ':stats'
+                        };
+                    }
+                    if ( !stats.submitted ) {
+                        stats.submitted = [];
+                    }
+                    stats.submitted.push( record.instanceId );
                     return propertyStore.update( stats );
                 } );
         }

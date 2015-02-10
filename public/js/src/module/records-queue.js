@@ -148,7 +148,10 @@ define( [ 'store', 'connection', 'gui', 'q', 'settings', 'translator' ], functio
                                 .then( function( result ) {
                                     successes.push( record.name );
                                     uploadProgress.update( record.instanceId, 'success', '', successes.length + fails.length, records.length );
-                                    return store.record.remove( record.instanceId );
+                                    return store.record.remove( record.instanceId )
+                                        .then( function() {
+                                            return store.property.addSubmittedInstanceId( record );
+                                        } );
                                 } )
                                 .catch( function( result ) {
                                     // if any non HTTP error occurs, output the error.message
