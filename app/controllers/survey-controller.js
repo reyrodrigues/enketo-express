@@ -40,7 +40,7 @@ function offlineWebform( req, res, next ) {
 
     if ( !req.app.get( 'offline enabled' ) ) {
         error = new Error( 'Offline functionality has not been enabled for this application.' );
-        error.status = 412;
+        error.status = 405;
         next( error );
     } else {
         req.offline = true;
