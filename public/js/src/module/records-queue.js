@@ -272,6 +272,8 @@ define( [ 'store', 'connection', 'gui', 'q', 'settings', 'translator' ], functio
                     $recordList.empty().append( '<li class="record-list__records--none">' + t( 'record-list.norecords' ) + '</li>' );
                     // deferred.resolve();
                     // return deferred.promise;
+                } else {
+                    $recordList.find( '.record-list__records--none' ).remove();
                 }
 
                 // remove records that no longer exist
