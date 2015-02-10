@@ -62,15 +62,17 @@ The easiest way to start the app in development and debugging mode with liverelo
 * :white_check_mark: this one is much easier to install
 * :white_check_mark: this one has a [multi-language](#translation) user interface
 * :white_check_mark: this one has cross-browser (media) file inputs
+* :white_check_mark: this one has an improved API (v2)
+* :white_check_mark: this one has support for multiple themes in *all* form views including previews 
+* :white_check_mark: this one allows overriding a form-defined theme via the API (v2) 
 * :white_check_mark: this one has the ability to override default form values on launch through the API (v2)
 * :white_check_mark: this one has a more advanced iframeable webform view that can communicate back to the parent window, enabled through the API (v2)
 * :white_check_mark: this one has [external authentication](#authentication) support 
-* :white_check_mark: this one has support for multiple themes in *all* form views including previews 
-* :white_check_mark: this one allows overriding the theme via the API (v2) 
 * :white_check_mark: this one will use the `instanceName` value defined in the XForm as the default local record name
 * :x: this one will not store the application in your browser for offline launch (yet) - form loading requires a connection to the server (this server may be on a local network though)
-* :x: offline data and form definitions are still experimental - **enable offline functionality only for testing and report bugs please**
+* :x: offline data and form definitions are still experimental - **enable offline functionality only for testing and [report bugs](https://github.com/kobotoolbox/enketo-express/issues) please**
 * :x: missing API endpoints and corresponding views: all endpoints containing "/single" (single submission views), and "/surveys/list" 
+* :x: no export of queued records (yet)
 * :x: no [Formtester](https://enketo.org/formtester) app (planning to integrate this functionality in the form previews)
 * :x: no [Forms](https://enketo.org/forms) app (you do not need this)
 * :x: no [enketo-managed form authentication](#authentication) (yet)
