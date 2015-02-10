@@ -24,14 +24,11 @@ define( [ 'store', 'connection', 'gui', 'q', 'settings', 'translator' ], functio
     var $exportButton, $uploadButton, $recordList, $queueNumber, uploadProgress,
         uploadOngoing = false;
 
-    // DEBUG
-    // window.store = store;
-
     function init() {
-        ////_setUploadIntervals();
-        // _setEventHandlers();
+        _setUploadIntervals();
 
         // TODO: Add export feature
+
         $exportButton = $( '.record-list__button-bar__button.export' );
         $uploadButton = $( '.record-list__button-bar__button.upload' );
         $queueNumber = $( '.offline-enabled__queue-length' );
@@ -254,7 +251,6 @@ define( [ 'store', 'connection', 'gui', 'q', 'settings', 'translator' ], functio
         var $li;
         // deferred = Q.defer();
 
-
         // reset the list
         $exportButton.prop( 'disabled', true );
         $uploadButton.prop( 'disabled', true );
@@ -303,7 +299,7 @@ define( [ 'store', 'connection', 'gui', 'q', 'settings', 'translator' ], functio
                     }
                     // add or update properties
                     $li.text( record.name )
-                        .attr( 'data-draft', !!record.draft )
+                        .attr( 'data-draft', !!record.draft );
                 } );
             } );
     }

@@ -390,7 +390,7 @@ define( [ 'gui', 'connection', 'settings', 'enketo-js/Form', 'enketo-js/FormMode
                 gui.feedback( t( 'alert.queuesubmissionsuccess.msg', {
                     count: successes.length,
                     recordNames: successes.join( ', ' )
-                } ), 10 );
+                } ), 7 );
             } );
 
             $( '.form-footer [name="draft"]' ).on( 'change', function() {
