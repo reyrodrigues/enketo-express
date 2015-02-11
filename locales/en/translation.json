@@ -171,6 +171,10 @@
       },
       "msg1": "Ouch! Sorry, you were probably sent here because your browser is outdated or perhaps it has its key features disabled by using 'private browsing' mode.",
       "msg2": "If you are using an outdated browser, we recommend upgrading to a recent version of one of the following excellent modern browsers:"
+    },
+    "offline": {
+      "heading": "Cannot access requested page",
+      "msg1": "This page is only accessible when the browser has an Internet connection and the server is accessible (unless the page does not exist of course)."
     }
   },
   "prompt": {
