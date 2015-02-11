@@ -12,7 +12,6 @@ module.exports = function( app ) {
 
 router
     .get( '/_/manifest.appcache', function( req, res, next ) {
-
         getManifest( req, res )
             .then( function( manifestContent ) {
                 res
@@ -21,7 +20,6 @@ router
             } )
             .catch( next );
     } );
-
 
 function getManifest( req, res ) {
     var deferred = Q.defer();
@@ -32,7 +30,9 @@ function getManifest( req, res ) {
         if ( err ) {
             deferred.reject( err );
         } else {
-            deferred.resolve( manifest.get( html, req.i18n.lng() ) );
+            manifest.get( html, req.i18n.lng() )
+                .then( deferred.resolve )
+                .catch( deferred.reject );
         }
     } );
 

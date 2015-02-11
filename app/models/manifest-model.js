@@ -4,52 +4,84 @@ var libxml = require( "libxmljs" ),
     url = require( 'url' ),
     path = require( 'path' ),
     fs = require( 'fs' ),
+    Q = require( 'q' ),
+    config = require( '../../config/config' ),
+    client = require( 'redis' ).createClient( config.redis.cache.port, config.redis.cache.host, {
+        auth_pass: config.redis.cache.password
+    } ),
     utils = require( '../lib/utils' ),
     debug = require( 'debug' )( 'manifest-model' );
 
+// in test environment, switch to different db
+if ( process.env.NODE_ENV === 'test' ) {
+    client.select( 15 );
+}
+
 function getManifest( html, lang ) {
-    var hash,
-        doc = libxml.parseHtml( html ),
-        resources = [],
-        app = require( '../../config/express' ),
-        themesSupported = app.get( 'themes supported' ) || [];
+    var hash, doc, resources, app, themesSupported,
+        key = 'ma:' + utils.md5( html ) + '_' + lang,
+        deferred = Q.defer();
 
-    // href attributes of link elements
-    resources = resources.concat( _getLinkHrefs( doc ) );
+    // each language gets its own manifest
+    client.get( key, function( error, manifest ) {
+        if ( error ) {
+            deferred.reject( error );
+        } else if ( manifest ) {
+            debug( 'getting manifest from cache' );
+            deferred.resolve( manifest );
+        } else {
+            debug( 'building manifest from scratch' );
+            doc = libxml.parseHtml( html );
+            resources = [];
+            app = require( '../../config/express' );
+            themesSupported = app.get( 'themes supported' ) || [];
 
-    // additional themes
-    resources = resources.concat( _getAdditionalThemes( resources, themesSupported ) );
+            // href attributes of link elements
+            resources = resources.concat( _getLinkHrefs( doc ) );
 
-    // translations
-    resources = resources.concat( _getTranslations( lang ) );
+            // additional themes
+            resources = resources.concat( _getAdditionalThemes( resources, themesSupported ) );
 
-    // any resources inside css files
-    resources = resources.concat( _getResourcesFromCss( resources ) );
+            // translations
+            resources = resources.concat( _getTranslations( lang ) );
 
-    // src attributes
-    resources = resources.concat( _getSrcAttributes( doc ) );
+            // any resources inside css files
+            resources = resources.concat( _getResourcesFromCss( resources ) );
 
-    // remove non-existing files, empties, duplicates and non-http urls
-    resources = resources
-        .filter( _removeEmpties )
-        .filter( _removeDuplicates )
-        .filter( _removeNonHttpResources )
-        .filter( _removeNonExisting );
+            // src attributes
+            resources = resources.concat( _getSrcAttributes( doc ) );
 
-    // calculate the hash to serve as the manifest version number
-    hash = _getHashFromResources( resources );
+            // remove non-existing files, empties, duplicates and non-http urls
+            resources = resources
+                .filter( _removeEmpties )
+                .filter( _removeDuplicates )
+                .filter( _removeNonHttpResources )
+                .filter( _removeNonExisting );
 
-    return 'CACHE MANIFEST\n' +
-        '# hash:' + hash + '\n' +
-        '\n' +
-        'CACHE:\n' +
-        resources.join( '\n' ) + '\n' +
-        '\n' +
-        'FALLBACK:\n' +
-        '/ /offline\n' +
-        '\n' +
-        'NETWORK:\n' +
-        '*\n';
+            // calculate the hash to serve as the manifest version number
+            hash = _getHashFromResources( resources );
+
+            // build manifest string
+            manifest = 'CACHE MANIFEST\n' +
+                '# hash:' + hash + '\n' +
+                '\n' +
+                'CACHE:\n' +
+                resources.join( '\n' ) + '\n' +
+                '\n' +
+                'FALLBACK:\n' +
+                '/ /offline\n' +
+                '\n' +
+                'NETWORK:\n' +
+                '*\n';
+
+            // cache manifest for a day, don't wait for result
+            client.set( key, manifest, 'EX', 24 * 60, function() {} );
+
+            deferred.resolve( manifest );
+        }
+    } );
+
+    return deferred.promise;
 }
 
 function _getLinkHrefs( doc ) {
