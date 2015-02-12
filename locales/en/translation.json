@@ -1,8 +1,16 @@
 {
   "alert": {
+    "appupdated": {
+      "heading": "App Updated!",
+      "msg": "A new version of this application has been downloaded. Refresh this page to load the updated version."
+    },
     "default": {
       "button": "Close",
       "heading": "Alert"
+    },
+    "formupdated": {
+      "heading": "Form Updated!",
+      "msg": "A new version of this form has been downloaded. Refresh this page to load the updated version."
     },
     "loaderror": {
       "editadvice": "It is recommended not to edit this record until this is resolved.",

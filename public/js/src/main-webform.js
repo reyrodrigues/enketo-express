@@ -23,16 +23,8 @@ require( [ 'require-config' ], function( rc ) {
                     .then( formCache.updateMedia )
                     .then( function( s ) {
                         settings.maxSize = s.maxSize;
-                        $( document ).on( 'offlinelaunchcapable', function() {
-                            console.log( 'This form is fully offline-capable!' );
-                            gui.updateStatus.offlineCapable( true );
-                            connection.getManifestVersion( $( 'html' ).attr( 'manifest' ) )
-                                .then( gui.updateStatus.applicationVersion );
-                        } );
-                        $( document ).on( 'offlinelaunchincapable', function() {
-                            console.error( 'This form cannot (or no longer) launch offline.' );
-                            gui.updateStatus.offlineCapable( false );
-                        } );
+                        _setFormCacheEventHandlers();
+                        _setApplicationCacheEventHandlers();
                         applicationCache.init();
                     } )
                     .catch( _showErrorOrAuthenticate );
@@ -57,6 +49,29 @@ require( [ 'require-config' ], function( rc ) {
                 } else {
                     gui.alert( error.message, t( 'alert.loaderror.heading' ) );
                 }
+            }
+
+            function _setApplicationCacheEventHandlers() {
+                $( document )
+                    .on( 'offlinelaunchcapable', function() {
+                        console.log( 'This form is fully offline-capable!' );
+                        gui.updateStatus.offlineCapable( true );
+                        connection.getManifestVersion( $( 'html' ).attr( 'manifest' ) )
+                            .then( gui.updateStatus.applicationVersion );
+                    } )
+                    .on( 'offlinelaunchincapable', function() {
+                        console.error( 'This form cannot (or can no longer) launch offline.' );
+                        gui.updateStatus.offlineCapable( false );
+                    } )
+                    .on( 'applicationupdated', function() {
+                        gui.feedback( t( 'alert.appupdated.msg' ), 20, t( 'alert.appupdated.heading' ) );
+                    } );
+            }
+
+            function _setFormCacheEventHandlers() {
+                $( document ).on( 'formupdated', function() {
+                    gui.feedback( t( 'alert.formupdated.msg' ), 20, t( 'alert.formupdated.heading' ) );
+                } );
             }
 
             function _swapTheme( survey ) {

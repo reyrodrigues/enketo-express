@@ -49,7 +49,7 @@ define( [ 'jquery' ], function( $ ) {
         // firefox bug: https://bugzilla.mozilla.org/show_bug.cgi?id=769171
         try {
             window.applicationCache.swapCache();
-            console.log( 'A new version of this application was downloaded. Refreshing the page will load the new version.' );
+            $( document ).trigger( 'applicationupdated' );
         } catch ( e ) {}
     }
 
