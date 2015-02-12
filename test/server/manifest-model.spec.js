@@ -12,13 +12,22 @@ var model = require( '../../app/models/manifest-model' ),
 describe( 'Manifest Model', function() {
 
     describe( 'creating a manifest', function() {
-        var dataUri = 'data:image/svg+xml;base64,PD94bW==',
+        var result,
+            dataUri = 'data:image/svg+xml;base64,PD94bW==',
             localLink = '#LOCAL',
             html = '<html>' +
             '<head><link href="/css/theme-kobo.css"/></head>' +
             '<body><script src="/js/src/module/gui.js"></script><img src="' + dataUri + '" /><img src="' + localLink + '" /></body>' +
-            '</html>',
-            result = model.get( html );
+            '</html>';
+
+        beforeEach( function( done ) {
+            model.get( html )
+                .then( function( manifest ) {
+                    result = manifest;
+
+                } )
+                .then( done, done );
+        } );
 
         it( 'includes the relevant manifest sections', function() {
             expect( result ).to.contain( 'CACHE MANIFEST' );
