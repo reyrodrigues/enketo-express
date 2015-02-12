@@ -2,8 +2,8 @@ require( [ 'require-config' ], function( rc ) {
     "use strict";
     if ( console.time ) console.time( 'client loading time' );
 
-    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'translator', 'utils', 'form-cache', 'q', 'jquery' ],
-        function( gui, controller, settings, connection, FormModel, t, utils, formCache, Q, $ ) {
+    require( [ 'gui', 'controller-webform', 'settings', 'connection', 'enketo-js/FormModel', 'translator', 'utils', 'form-cache', 'application-cache', 'q', 'jquery' ],
+        function( gui, controller, settings, connection, FormModel, t, utils, formCache, applicationCache, Q, $ ) {
             var $loader = $( '.form__loader' ),
                 $buttons = $( '.form-header__button--print, button#validate-form, button#submit-form' ),
                 survey = {
@@ -23,8 +23,15 @@ require( [ 'require-config' ], function( rc ) {
                     .then( formCache.updateMedia )
                     .then( function( s ) {
                         settings.maxSize = s.maxSize;
-                        console.debug( 'Form is now stored and available offline!' );
-                        // TODO show offline-capable icon in UI
+                        $( document ).on( 'offlinelaunchcapable', function() {
+                            console.log( 'This form is fully offline-capable!' );
+                            gui.updateStatus.offlineCapable( true );
+                        } );
+                        $( document ).on( 'offlinelaunchincapable', function() {
+                            console.error( 'This form cannot (or no longer) launch offline.' );
+                            gui.updateStatus.offlineCapable( false );
+                        } );
+                        applicationCache.init();
                     } )
                     .catch( _showErrorOrAuthenticate );
             } else {
