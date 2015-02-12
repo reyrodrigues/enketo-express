@@ -33,7 +33,6 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
             } )
             .then( function( result ) {
                 var deferred = Q.defer();
-                console.log( 'storage get result', result );
                 if ( result ) {
                     deferred.resolve( result );
                     return deferred.promise;
@@ -65,8 +64,6 @@ define( [ 'store', 'connection', 'q' ], function( store, connection, Q ) {
 
     function _setUpdateIntervals( survey ) {
         var deferred = Q.defer();
-
-        console.debug( 'setting update check intervals' );
 
         hash = survey.hash;
 
