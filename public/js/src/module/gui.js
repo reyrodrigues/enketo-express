@@ -388,6 +388,9 @@ define( [ 'Modernizr', 'q', 'settings', 'print', 'translator', 'vex.dialog.custo
             } else {
                 $( '.offline-enabled__icon' ).addClass( 'not-enabled' );
             }
+        },
+        applicationVersion: function( version ) {
+            $( '.side-slider__app-version__value' ).text( version );
         }
     };
 

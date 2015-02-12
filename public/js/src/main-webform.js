@@ -26,6 +26,8 @@ require( [ 'require-config' ], function( rc ) {
                         $( document ).on( 'offlinelaunchcapable', function() {
                             console.log( 'This form is fully offline-capable!' );
                             gui.updateStatus.offlineCapable( true );
+                            connection.getManifestVersion( $( 'html' ).attr( 'manifest' ) )
+                                .then( gui.updateStatus.applicationVersion );
                         } );
                         $( document ).on( 'offlinelaunchincapable', function() {
                             console.error( 'This form cannot (or no longer) launch offline.' );

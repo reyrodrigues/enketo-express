@@ -11,7 +11,7 @@ module.exports = function( app ) {
 };
 
 router
-    .get( '/_/manifest.appcache', function( req, res, next ) {
+    .get( '/_/manifest.appcache*', function( req, res, next ) {
         getManifest( req, res )
             .then( function( manifestContent ) {
                 res
@@ -25,7 +25,7 @@ function getManifest( req, res ) {
     var deferred = Q.defer();
 
     res.render( 'surveys/webform', {
-        offline: true
+        manifest: '/_/manifest.appcache'
     }, function( err, html ) {
         if ( err ) {
             deferred.reject( err );

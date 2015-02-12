@@ -18,15 +18,16 @@ if ( process.env.NODE_ENV === 'test' ) {
 }
 
 function getManifest( html, lang ) {
-    var hash, doc, resources, app, themesSupported,
-        key = 'ma:' + utils.md5( html ) + '_' + lang,
+    var hash, version, doc, resources, app, themesSupported, date,
+        manifestKey = 'ma:' + lang + '_manifest',
+        versionKey = 'ma:' + lang + '_version',
         deferred = Q.defer();
 
     // each language gets its own manifest
-    client.get( key, function( error, manifest ) {
+    client.get( manifestKey, function( error, manifest ) {
         if ( error ) {
             deferred.reject( error );
-        } else if ( manifest ) {
+        } else if ( manifest && manifest !== 'null' ) {
             debug( 'getting manifest from cache' );
             deferred.resolve( manifest );
         } else {
@@ -59,29 +60,66 @@ function getManifest( html, lang ) {
                 .filter( _removeNonExisting );
 
             // calculate the hash to serve as the manifest version number
-            hash = _getHashFromResources( resources );
+            hash = _calculateHash( html, resources );
 
-            // build manifest string
-            manifest = 'CACHE MANIFEST\n' +
-                '# hash:' + hash + '\n' +
-                '\n' +
-                'CACHE:\n' +
-                resources.join( '\n' ) + '\n' +
-                '\n' +
-                'FALLBACK:\n' +
-                '/ /offline\n' +
-                '\n' +
-                'NETWORK:\n' +
-                '*\n';
-
-            // cache manifest for a day, don't wait for result
-            client.set( key, manifest, 'EX', 24 * 60, function() {} );
-
-            deferred.resolve( manifest );
+            // determine version
+            _getVersionObj( versionKey )
+                .then( function( obj ) {
+                    version = obj.version;
+                    if ( obj.hash !== hash ) {
+                        // create a new version
+                        date = new Date().toISOString().replace( 'T', '|' );
+                        version = date.substring( 0, date.length - 8 ) + '|' + lang;
+                        // update stored version, don't wait for result
+                        _updateVersionObj( versionKey, hash, version );
+                    }
+                    manifest = _getManifestString( version, resources );
+                    // cache manifest for an hour, don't wait for result
+                    client.set( manifestKey, manifest, 'EX', 1 * 60 * 60, function() {} );
+                    deferred.resolve( manifest );
+                } );
         }
     } );
 
     return deferred.promise;
+}
+
+function _getManifestString( version, resources ) {
+    return 'CACHE MANIFEST\n' +
+        '# version: ' + version + '\n' +
+        '\n' +
+        'CACHE:\n' +
+        resources.join( '\n' ) + '\n' +
+        '\n' +
+        'FALLBACK:\n' +
+        '/ /offline\n' +
+        '\n' +
+        'NETWORK:\n' +
+        '*\n';
+}
+
+function _getVersionObj( versionKey ) {
+    var deferred = Q.defer();
+
+    client.hgetall( versionKey, function( error, obj ) {
+        debug( 'result', obj );
+        if ( error ) {
+            deferred.reject( error );
+        } else if ( obj && obj.hash && obj.version ) {
+            deferred.resolve( obj );
+        } else {
+            deferred.resolve( {} );
+        }
+    } );
+
+    return deferred.promise;
+}
+
+function _updateVersionObj( versionKey, hash, version ) {
+    client.hmset( versionKey, {
+        hash: hash,
+        version: version
+    }, function( error ) {} );
 }
 
 function _getLinkHrefs( doc ) {
@@ -171,9 +209,9 @@ function _removeNonHttpResources( resourceUrl ) {
     return parsedUrl.path && parsedUrl.protocol !== 'data:';
 }
 
-function _getHashFromResources( resources ) {
+function _calculateHash( html, resources ) {
     var content,
-        hash = '';
+        hash = utils.md5( html );
 
     resources.forEach( function( resource ) {
         try {

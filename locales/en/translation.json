@@ -204,5 +204,6 @@
     "http413": "Data is too large.",
     "http4xx": "Unknown submission problem on data server.",
     "http500": "The data server for your form or the Enketo server is down. Please try again later or contact __supportEmail__."
-  }
+  },
+  "version": "version:"
 }

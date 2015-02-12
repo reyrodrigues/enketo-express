@@ -30,11 +30,12 @@ define( [ 'jquery' ], function( $ ) {
             if ( status === window.applicationCache.IDLE ) {
                 _reportOfflineLaunchCapable();
             } else if ( status === window.applicationCache.UPDATEREADY ) {
+                _reportOfflineLaunchCapable();
                 _swapCache();
             }
 
             $( window.applicationCache )
-                .on( 'cached noupdate', _reportOfflineLaunchCapable )
+                .on( 'cached noupdate updateready', _reportOfflineLaunchCapable )
                 .on( 'updateready', _swapCache )
                 .on( 'obsolete', _reportOfflineLaunchIncapable );
 
@@ -48,6 +49,7 @@ define( [ 'jquery' ], function( $ ) {
         // firefox bug: https://bugzilla.mozilla.org/show_bug.cgi?id=769171
         try {
             window.applicationCache.swapCache();
+            console.log( 'A new version of this application was downloaded. Refreshing the page will load the new version.' );
         } catch ( e ) {}
     }
 
